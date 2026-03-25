@@ -1,0 +1,275 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OVERLAYS_DIR="${REPO_DIR}/overlays"
+OFFICIAL_LIST="${REPO_DIR}/paquetes-oficiales.txt"
+AUR_LIST="${REPO_DIR}/paquetes-aur.txt"
+
+TARGET_USER="${SUDO_USER:-$(whoami)}"
+TARGET_HOME="$(getent passwd "${TARGET_USER}" | cut -d: -f6)"
+SWAP_SIZE_GB="${SWAP_SIZE_GB:-16}"
+SWAP_FILE="${SWAP_FILE:-/swapfile}"
+
+log() {
+	printf '[*] %s\n' "$*"
+}
+
+warn() {
+	printf '[!] %s\n' "$*" >&2
+}
+
+die() {
+	printf '[x] %s\n' "$*" >&2
+	exit 1
+}
+
+require_root() {
+	if [[ $EUID -ne 0 ]]; then
+		die "Ejecuta con sudo: sudo bash ${REPO_DIR}/bootstrap.sh"
+	fi
+}
+
+require_files() {
+	[[ -d "$OVERLAYS_DIR" ]] || die "No existe overlays en ${OVERLAYS_DIR}"
+	[[ -f "$OFFICIAL_LIST" ]] || die "No existe ${OFFICIAL_LIST}"
+	[[ -f "$AUR_LIST" ]] || warn "No existe ${AUR_LIST}; se omitira AUR"
+}
+
+require_target_user() {
+	[[ -n "${TARGET_USER}" ]] || die "No se pudo detectar usuario objetivo"
+	id "${TARGET_USER}" >/dev/null 2>&1 || die "No existe el usuario ${TARGET_USER}"
+	[[ -n "${TARGET_HOME}" ]] || die "No se pudo detectar HOME para ${TARGET_USER}"
+	[[ -d "${TARGET_HOME}" ]] || die "No existe HOME de ${TARGET_USER}: ${TARGET_HOME}"
+}
+
+setup_oh_my_bash() {
+	local home_dst="${TARGET_HOME}"
+	local omb_dir="${home_dst}/.config/oh-my-bash"
+
+	log "Configurando oh-my-bash en .config/oh-my-bash"
+	pacman -S --noconfirm --needed git || true
+	sudo -u "${TARGET_USER}" mkdir -p "${home_dst}/.config"
+
+	if [[ ! -d "${omb_dir}/.git" ]]; then
+		rm -rf "${omb_dir}"
+		sudo -u "${TARGET_USER}" git clone --depth 1 https://github.com/ohmybash/oh-my-bash.git "${omb_dir}"
+	else
+		sudo -u "${TARGET_USER}" git -C "${omb_dir}" pull --ff-only || true
+	fi
+
+    cp -f "${OVERLAYS_DIR}/home/.config/oh-my-bash/lambda.theme.sh" "${omb_dir}/themes/lambda/lambda.theme.sh"
+
+	chown -R "${TARGET_USER}:${TARGET_USER}" "${home_dst}/.config"
+}
+
+copy_repo_config() {
+	log "Aplicando pacman.conf/mirrorlist del overlay"
+
+	if [[ -f "${OVERLAYS_DIR}/etc/pacman.conf" ]]; then
+		cp -f "${OVERLAYS_DIR}/etc/pacman.conf" /etc/pacman.conf
+	fi
+
+	if [[ -f "${OVERLAYS_DIR}/etc/pacman.d/mirrorlist" ]]; then
+		mkdir -p /etc/pacman.d
+		cp -f "${OVERLAYS_DIR}/etc/pacman.d/mirrorlist" /etc/pacman.d/mirrorlist
+	fi
+
+	if [[ -f "${OVERLAYS_DIR}/etc/pacman.d/blackarch-mirrorlist" ]]; then
+		mkdir -p /etc/pacman.d
+		cp -f "${OVERLAYS_DIR}/etc/pacman.d/blackarch-mirrorlist" /etc/pacman.d/blackarch-mirrorlist
+	fi
+
+	pacman -Syy --noconfirm
+}
+
+read_pkg_list() {
+	local file="$1"
+	grep -Ev '^[[:space:]]*(#|$)' "$file" || true
+}
+
+install_official_packages() {
+	log "Instalando paquetes oficiales"
+	mapfile -t pkgs < <(read_pkg_list "$OFFICIAL_LIST")
+
+	if (( ${#pkgs[@]} == 0 )); then
+		warn "Lista oficial vacia"
+		return 0
+	fi
+
+	pacman -Syu --noconfirm
+
+	local pkg
+	for pkg in "${pkgs[@]}"; do
+		if pacman -Si "$pkg" >/dev/null 2>&1; then
+			pacman -S --noconfirm --needed "$pkg" || warn "Fallo instalando ${pkg}"
+		else
+			warn "Paquete no encontrado en repos actuales: ${pkg}"
+		fi
+	done
+}
+
+ensure_paru() {
+	if command -v paru >/dev/null 2>&1; then
+		return 0
+	fi
+
+	log "Instalando paru desde AUR"
+	pacman -S --noconfirm --needed base-devel git
+
+	sudo -u "$TARGET_USER" bash -lc '
+		set -euo pipefail
+		cd "$HOME"
+		rm -rf paru
+		git clone https://aur.archlinux.org/paru.git
+		cd paru
+		makepkg -si --noconfirm
+	'
+}
+
+install_aur_packages() {
+	[[ -f "$AUR_LIST" ]] || return 0
+
+	log "Instalando paquetes AUR"
+	ensure_paru
+
+	mapfile -t aur_pkgs < <(read_pkg_list "$AUR_LIST")
+	if (( ${#aur_pkgs[@]} == 0 )); then
+		warn "Lista AUR vacia"
+		return 0
+	fi
+
+	local pkg
+	for pkg in "${aur_pkgs[@]}"; do
+		sudo -u "$TARGET_USER" bash -lc "paru -S --noconfirm --needed '$pkg'" || warn "Fallo instalando AUR ${pkg}"
+	done
+}
+
+apply_overlays() {
+	local home_dst="${TARGET_HOME}"
+
+	log "Aplicando overlays de binarios"
+	if [[ -d "${OVERLAYS_DIR}/bin" ]]; then
+		mkdir -p /usr/local/bin
+		cp -af "${OVERLAYS_DIR}/bin/." /usr/local/bin/
+		chmod -R a+rx /usr/local/bin
+	fi
+
+	log "Aplicando overlays de HOME"
+	if [[ -d "${OVERLAYS_DIR}/home" ]]; then
+		cp -af "${OVERLAYS_DIR}/home/." "$home_dst/"
+		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst"
+	fi
+
+	log "Aplicando overlays de share"
+	if [[ -d "${OVERLAYS_DIR}/share" ]]; then
+		mkdir -p "$home_dst/share"
+		cp -af "${OVERLAYS_DIR}/share/." "$home_dst/share/"
+		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst/share"
+	fi
+
+	log "Aplicando overlays de quickshell"
+	if [[ -d "${OVERLAYS_DIR}/etc/quickshell" ]]; then
+		cp -af "${OVERLAYS_DIR}/etc/quickshell/bongocat.git" /etc/xdg/quickshell/caelestia/assets/
+        cp -af "${OVERLAYS_DIR}/etc/quickshell/Content.qml" /etc/xdg/quickshell/caelestia/modules/session/
+	fi
+
+	log "Aplicando overlays de SDDM"
+	if [[ -f "${OVERLAYS_DIR}/etc/sddm/sddm.conf" ]]; then
+		cp -f "${OVERLAYS_DIR}/etc/sddm/sddm.conf" /etc/sddm.conf
+	fi
+	if [[ -d "${OVERLAYS_DIR}/etc/sddm/sugar-candy" ]]; then
+		mkdir -p /usr/share/sddm/themes/sugar-candy
+		cp -af "${OVERLAYS_DIR}/etc/sddm/sugar-candy/." /usr/share/sddm/themes/sugar-candy/
+	fi
+
+	log "Aplicando overlays de GRUB"
+	if [[ -f "${OVERLAYS_DIR}/etc/grub/grub" ]]; then
+		cp -f "${OVERLAYS_DIR}/etc/grub/grub" /etc/default/grub
+	fi
+	if [[ -d "${OVERLAYS_DIR}/etc/grub/grub.d" ]]; then
+		mkdir -p /etc/grub.d
+		cp -af "${OVERLAYS_DIR}/etc/grub/grub.d/." /etc/grub.d/
+		chmod -R a+rx /etc/grub.d
+	fi
+	if [[ -d "${OVERLAYS_DIR}/etc/grub/yorha" ]]; then
+		mkdir -p /boot/grub/themes/yorha
+		cp -af "${OVERLAYS_DIR}/etc/grub/yorha/." /boot/grub/themes/yorha/
+	fi
+}
+
+get_swap_offset() {
+	local fstype
+	fstype="$(findmnt -no FSTYPE -T "$SWAP_FILE")"
+
+	if [[ "$fstype" == "btrfs" ]] && command -v btrfs >/dev/null 2>&1; then
+		btrfs inspect-internal map-swapfile -r "$SWAP_FILE"
+	else
+		filefrag -v "$SWAP_FILE" | awk '$1=="0:"{gsub(/\.+/,"",$4); print $4; exit}'
+	fi
+}
+
+configure_swap_hibernate() {
+	log "Configurando swap e hibernacion"
+
+	if [[ ! -f "$SWAP_FILE" ]]; then
+		fallocate -l "${SWAP_SIZE_GB}G" "$SWAP_FILE" || \
+			dd if=/dev/zero of="$SWAP_FILE" bs=1M count="$((SWAP_SIZE_GB * 1024))" status=progress
+		chmod 600 "$SWAP_FILE"
+		mkswap "$SWAP_FILE"
+	fi
+
+	swapon "$SWAP_FILE" || true
+	grep -qE '^/swapfile[[:space:]]' /etc/fstab || echo '/swapfile none swap defaults 0 0' >> /etc/fstab
+
+	local resume_uuid resume_offset
+	resume_uuid="$(findmnt -no UUID -T "$SWAP_FILE")"
+	resume_offset="$(get_swap_offset)"
+
+	[[ -n "$resume_uuid" ]] || die "No se pudo calcular UUID de resume"
+	[[ -n "$resume_offset" ]] || die "No se pudo calcular resume_offset"
+
+	if [[ -f /etc/default/grub ]]; then
+		sed -i -E 's/(^GRUB_CMDLINE_LINUX_DEFAULT=")([^"]*)"/\1\2"/' /etc/default/grub
+		sed -i -E 's/(resume=UUID=[^ ]+|resume_offset=[^ ]+)//g' /etc/default/grub
+		sed -i -E 's/  +/ /g' /etc/default/grub
+		sed -i -E "s|^(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*)\"|\1 resume=UUID=${resume_uuid} resume_offset=${resume_offset}\"|" /etc/default/grub
+	else
+		echo "GRUB_CMDLINE_LINUX_DEFAULT=\"resume=UUID=${resume_uuid} resume_offset=${resume_offset}\"" > /etc/default/grub
+	fi
+
+	if [[ -f /etc/mkinitcpio.conf ]] && ! grep -qE '(^|[[:space:]])resume([[:space:]]|$)' /etc/mkinitcpio.conf; then
+		sed -i -E 's/^HOOKS=\((.*)filesystems(.*)\)/HOOKS=(\1resume filesystems\2)/' /etc/mkinitcpio.conf
+	fi
+
+	mkinitcpio -P || warn "mkinitcpio fallo"
+	grub-mkconfig -o /boot/grub/grub.cfg || warn "grub-mkconfig fallo"
+}
+
+enable_services() {
+	log "Habilitando servicios base"
+	systemctl enable sddm >/dev/null 2>&1 || warn "No se pudo habilitar sddm"
+	systemctl enable docker >/dev/null 2>&1 || true
+	systemctl enable bluetooth >/dev/null 2>&1 || true
+	systemctl enable ufw >/dev/null 2>&1 || true
+}
+
+main() {
+	require_root
+	require_files
+	require_target_user
+    setup_oh_my_bash
+	copy_repo_config
+	install_official_packages
+	install_aur_packages
+	apply_overlays
+	configure_swap_hibernate
+	enable_services
+
+    cp -r "${REPO_DIR}/share/Wallpapers" "${TARGET_HOME}/Pictures/"
+ 
+	log "Bootstrap completo para ${TARGET_USER} (${TARGET_HOME})"
+	log "Reinicia para validar SDDM, GRUB theme y hibernacion"
+}
+
+main "$@"

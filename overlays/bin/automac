@@ -1,0 +1,24 @@
+#!/bin/bash
+INTERFACES=$(ip -o link show | awk -F': ' '{print $2}' | grep -v 'lo')
+
+case "$1" in
+    on)
+        for IFACE in $INTERFACES; do
+            sudo ip link set "$IFACE" down
+            sudo macchanger -r "$IFACE" | grep "New MAC"
+            sudo ip link set "$IFACE" up
+        done
+        echo "ESTADO: ENCENDIDO"
+        ;;
+    off)
+        for IFACE in $INTERFACES; do
+            sudo ip link set "$IFACE" down
+            sudo macchanger -p "$IFACE" | grep "Permanent MAC"
+            sudo ip link set "$IFACE" up
+        done
+        echo "ESTADO: APAGADO"
+        ;;
+    *)
+        echo "Uso: automac [on|off]"
+        ;;
+esac

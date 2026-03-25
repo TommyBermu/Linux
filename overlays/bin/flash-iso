@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Ensure two arguments are provided
+if [ "$#" -ne 2 ]; then
+    echo "Usage: flash-iso <source_iso> <target_device>"
+    exit 1
+fi
+
+ISO_FILE="$1"
+TARGET_DEV="$2"
+
+# Check if file and device exist
+if [ ! -f "$ISO_FILE" ]; then
+    echo "Error: ISO file not found."
+    exit 1
+fi
+
+if [ ! -b "$TARGET_DEV" ]; then
+    echo "Error: Target device not found or is not a block device."
+    exit 1
+fi
+
+# 1. Start flashing process
+echo "Writing $ISO_FILE to $TARGET_DEV..."
+sudo dd if="$ISO_FILE" of="$TARGET_DEV" bs=4M status=progress oflag=direct
+sync
+
+# 2. Hash Verification
+echo -e "\nInitializing integrity check..."
+ISO_SIZE=$(stat -c %s "$ISO_FILE")
+ISO_HASH=$(sha256sum "$ISO_FILE" | awk '{print $1}')
+DEV_HASH=$(sudo head -c "$ISO_SIZE" "$TARGET_DEV" | sha256sum | awk '{print $1}')
+
+echo "------------------------------------------------"
+echo "Source Hash: $ISO_HASH"
+echo "Target Hash: $DEV_HASH"
+echo "------------------------------------------------"
+
+if [ "$ISO_HASH" == "$DEV_HASH" ]; then
+    echo "SUCCESS: Verification passed. Media is ready."
+else
+    echo "FAILURE: Hash mismatch detected. Do not use this media."
+    exit 1
+fi
