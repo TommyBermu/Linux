@@ -44,12 +44,11 @@ require_target_user() {
 }
 
 setup_oh_my_bash() {
-	local home_dst="${TARGET_HOME}"
-	local omb_dir="${home_dst}/.config/oh-my-bash"
+	local omb_dir="${TARGET_HOME}/.config/oh-my-bash"
 
 	log "Configurando oh-my-bash en .config/oh-my-bash"
 	pacman -S --noconfirm --needed git || true
-	sudo -u "${TARGET_USER}" mkdir -p "${home_dst}/.config"
+	sudo -u "${TARGET_USER}" mkdir -p "${TARGET_HOME}/.config"
 
 	if [[ ! -d "${omb_dir}/.git" ]]; then
 		rm -rf "${omb_dir}"
@@ -60,7 +59,48 @@ setup_oh_my_bash() {
 
     cp -f "${OVERLAYS_DIR}/home/.config/oh-my-bash/lambda.theme.sh" "${omb_dir}/themes/lambda/lambda.theme.sh"
 
-	chown -R "${TARGET_USER}:${TARGET_USER}" "${home_dst}/.config"
+	chown -R "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/.config"
+}
+
+setup_nvim_tmux() {
+	local nvim_dir="${TARGET_HOME}/.config/nvim"
+	local tmux_dir="${TARGET_HOME}/.config/tmux"
+	local tpm_dir="${tmux_dir}/plugins/tpm"
+
+	log "Configurando nvim desde GitHub"
+	sudo -u "${TARGET_USER}" mkdir -p "${TARGET_HOME}/.config"
+	if [[ ! -d "${nvim_dir}/.git" ]]; then
+		rm -rf "${nvim_dir}"
+		sudo -u "${TARGET_USER}" git clone --depth 1 https://github.com/TommyBermu/nvim.git "${nvim_dir}"
+	else
+		sudo -u "${TARGET_USER}" git -C "${nvim_dir}" pull --ff-only || true
+	fi
+
+	log "Configurando tmux desde GitHub"
+	if [[ ! -d "${tmux_dir}/.git" ]]; then
+		rm -rf "${tmux_dir}"
+		sudo -u "${TARGET_USER}" git clone --depth 1 https://github.com/TommyBermu/tmux.git "${tmux_dir}"
+	else
+		sudo -u "${TARGET_USER}" git -C "${tmux_dir}" pull --ff-only || true
+	fi
+
+	log "Instalando TPM"
+	sudo -u "${TARGET_USER}" mkdir -p "${tmux_dir}/plugins"
+	if [[ ! -d "${tpm_dir}/.git" ]]; then
+		rm -rf "${tpm_dir}"
+		sudo -u "${TARGET_USER}" git clone --depth 1 https://github.com/tmux-plugins/tpm "${tpm_dir}"
+	else
+		sudo -u "${TARGET_USER}" git -C "${tpm_dir}" pull --ff-only || true
+	fi
+
+	log "Instalando plugins de tmux con TPM"
+	if [[ -x "${tpm_dir}/bin/install_plugins" ]]; then
+		sudo -u "${TARGET_USER}" bash -lc "HOME='${TARGET_HOME}' '${tpm_dir}/bin/install_plugins'" || warn "No se pudieron instalar plugins de tmux automaticamente"
+	else
+		warn "No existe install_plugins en ${tpm_dir}/bin"
+	fi
+
+	chown -R "${TARGET_USER}:${TARGET_USER}" "${nvim_dir}" "${tmux_dir}"
 }
 
 copy_repo_config() {
@@ -263,6 +303,7 @@ main() {
 	install_official_packages
 	install_aur_packages
 	apply_overlays
+	setup_nvim_tmux
 	configure_swap_hibernate
 	enable_services
 
