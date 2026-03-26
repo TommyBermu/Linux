@@ -17,6 +17,7 @@ docker
 docker-compose
 exfatprogs
 firejail
+fish
 fprintd
 gparted
 grub

@@ -207,6 +207,26 @@ install_aur_packages() {
 	fi
 }
 
+setup_caelestia_from_github() {
+	local caelestia_dir="${TARGET_HOME}/.local/share/caelestia"
+
+	log "Instalando Caelestia desde GitHub"
+	command -v fish >/dev/null 2>&1 || die "Falta fish; agrega fish a paquetes oficiales"
+	sudo -u "${TARGET_USER}" mkdir -p "${TARGET_HOME}/.local/share"
+
+	if [[ ! -d "${caelestia_dir}/.git" ]]; then
+		rm -rf "${caelestia_dir}"
+		sudo -u "${TARGET_USER}" git clone --depth 1 https://github.com/caelestia-dots/caelestia.git "${caelestia_dir}"
+	else
+		sudo -u "${TARGET_USER}" git -C "${caelestia_dir}" pull --ff-only || true
+	fi
+
+	[[ -f "${caelestia_dir}/install.fish" ]] || die "No existe ${caelestia_dir}/install.fish"
+	if ! sudo -u "${TARGET_USER}" env HOME="${TARGET_HOME}" fish "${caelestia_dir}/install.fish"; then
+		die "Fallo instalando Caelestia desde GitHub"
+	fi
+}
+
 apply_overlays() {
 	local home_dst="${TARGET_HOME}"
 
@@ -333,6 +353,7 @@ main() {
 	copy_repo_config
 	install_official_packages
 	install_aur_packages
+	setup_caelestia_from_github
 	apply_overlays
 	setup_nvim_tmux
 	configure_swap_hibernate
