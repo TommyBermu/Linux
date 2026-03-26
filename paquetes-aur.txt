@@ -3,7 +3,6 @@ caelestia-cli
 f3
 gitkraken
 grub-customizer
-libfprint-2-tod1-elan
 libfprint-tod-git
 linux-wifi-hotspot
 quickshell-git
