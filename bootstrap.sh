@@ -195,10 +195,16 @@ install_aur_packages() {
 		return 0
 	fi
 
-	local pkg
-	for pkg in "${aur_pkgs[@]}"; do
-		sudo -u "$TARGET_USER" bash -lc "paru -S --noconfirm --needed '$pkg'" || warn "Fallo instalando AUR ${pkg}"
-	done
+	local aur_payload
+	aur_payload="$(printf '%s\n' "${aur_pkgs[@]}")"
+
+	if ! sudo -u "$TARGET_USER" AUR_PAYLOAD="$aur_payload" bash -lc '
+		set -euo pipefail
+		mapfile -t aur_pkgs <<< "$AUR_PAYLOAD"
+		paru -S --noconfirm --needed --sudoloop "${aur_pkgs[@]}"
+	'; then
+		warn "Fallo instalando uno o mas paquetes AUR en la ejecucion conjunta"
+	fi
 }
 
 apply_overlays() {
