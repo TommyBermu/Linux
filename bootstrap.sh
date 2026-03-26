@@ -232,8 +232,8 @@ apply_overlays() {
 
 	log "Aplicando overlays de quickshell"
 	if [[ -d "${OVERLAYS_DIR}/etc/quickshell" ]]; then
-		cp -af "${OVERLAYS_DIR}/etc/quickshell/bongocat.gif" /etc/xdg/quickshell/caelestia/assets/
-        cp -af "${OVERLAYS_DIR}/etc/quickshell/Content.qml" /etc/xdg/quickshell/caelestia/modules/session/
+		cp -af "${OVERLAYS_DIR}/etc/quickshell/bongocat.gif" /etc/xdg/quickshell/caelestia/assets/bongocat.gif
+        cp -af "${OVERLAYS_DIR}/etc/quickshell/Content.qml" /etc/xdg/quickshell/caelestia/modules/session/Content.qml
 	fi
 
 	log "Aplicando overlays de SDDM"
