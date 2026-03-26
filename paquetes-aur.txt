@@ -18,5 +18,5 @@ paru-debug
 quickshell-git
 spotify
 visual-studio-code-bin
-whatsapp-linux-desktop
+zapzap
 ytmdesktop
