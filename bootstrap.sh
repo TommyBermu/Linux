@@ -220,7 +220,16 @@ apply_overlays() {
 	log "Aplicando overlays de HOME"
 	if [[ -d "${OVERLAYS_DIR}/home" ]]; then
 		cp -af "${OVERLAYS_DIR}/home/." "$home_dst/"
+
+		# Hypr vive en Caelestia; copiamos al destino real y dejamos symlink en .config.
+		if [[ -e "${OVERLAYS_DIR}/home/.config/hypr" ]]; then
+			cp -aLf "${OVERLAYS_DIR}/home/.config/hypr/." "$home_dst/.local/share/caelestia/hypr/" || warn "No se pudo copiar overlay de hypr"
+			rm -rf "$home_dst/.config/hypr"
+			ln -s "$home_dst/.local/share/caelestia/hypr" "$home_dst/.config/hypr"
+		fi
+
 		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst"
+		chown -h "${TARGET_USER}:${TARGET_USER}" "$home_dst/.config/hypr" 2>/dev/null || true
 	fi
 
 	log "Aplicando overlays de share"

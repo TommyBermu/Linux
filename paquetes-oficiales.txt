@@ -60,11 +60,13 @@ okular
 openssh
 openvpn
 os-prober
+pacman-contrib
 paru
 perl-config-simple
 pipewire
 pipewire-alsa
 pipewire-jack
+pybind11
 power-profiles-daemon
 proton-vpn-gtk-app
 python-pip
@@ -88,7 +90,6 @@ uwsm
 v4l2loopback-dkms
 vim
 vkd3d
-vulkan-intel
 vulkan-nouveau
 vulkan-radeon
 wireless_tools

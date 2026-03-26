@@ -1,12 +1,12 @@
 brave-bin
+caelestia-gif
 caelestia-cli
 f3
 gitkraken
 grub-customizer
-libfprint-tod-git
 linux-wifi-hotspot
 quickshell-git
 spotify
 visual-studio-code-bin
-zapzap
 ytmdesktop
+zapzap
