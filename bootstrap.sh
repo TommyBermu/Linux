@@ -104,23 +104,39 @@ setup_nvim_tmux() {
 }
 
 copy_repo_config() {
-	log "Aplicando pacman.conf/mirrorlist del overlay"
+	log "Aplicando configuracion de pacman"
 
 	if [[ -f "${OVERLAYS_DIR}/etc/pacman.conf" ]]; then
 		cp -f "${OVERLAYS_DIR}/etc/pacman.conf" /etc/pacman.conf
 	fi
 
-	if [[ -f "${OVERLAYS_DIR}/etc/pacman.d/mirrorlist" ]]; then
-		mkdir -p /etc/pacman.d
-		cp -f "${OVERLAYS_DIR}/etc/pacman.d/mirrorlist" /etc/pacman.d/mirrorlist
-	fi
-
-	if [[ -f "${OVERLAYS_DIR}/etc/pacman.d/blackarch-mirrorlist" ]]; then
-		mkdir -p /etc/pacman.d
-		cp -f "${OVERLAYS_DIR}/etc/pacman.d/blackarch-mirrorlist" /etc/pacman.d/blackarch-mirrorlist
-	fi
+	setup_blackarch_repo
 
 	pacman -Syy --noconfirm
+}
+
+setup_blackarch_repo() {
+	log "Configurando BlackArch (obligatorio) con strap.sh oficial"
+	command -v curl >/dev/null 2>&1 || die "Falta curl; instala curl y vuelve a ejecutar"
+
+	local tmp_strap
+	tmp_strap="$(mktemp /tmp/blackarch-strap.XXXXXX.sh)"
+	if ! curl -fsSL https://blackarch.org/strap.sh -o "$tmp_strap"; then
+		rm -f "$tmp_strap"
+		die "No se pudo descargar strap.sh de BlackArch"
+	fi
+
+	chmod +x "$tmp_strap"
+	if ! bash "$tmp_strap"; then
+		rm -f "$tmp_strap"
+		die "Fallo ejecutando strap.sh de BlackArch"
+	fi
+
+	rm -f "$tmp_strap"
+
+	if [[ ! -f /etc/pacman.d/blackarch-mirrorlist ]]; then
+		die "BlackArch no quedo configurado: falta /etc/pacman.d/blackarch-mirrorlist"
+	fi
 }
 
 read_pkg_list() {
