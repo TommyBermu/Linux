@@ -26,7 +26,7 @@ die() {
 
 require_root() {
 	if [[ $EUID -ne 0 ]]; then
-		die "Ejecuta con sudo: sudo bash ${REPO_DIR}/bootstrap.sh"
+		die "Ejecuta con sudo: sudo ${REPO_DIR}/bootstrap.sh"
 	fi
 }
 
