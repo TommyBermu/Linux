@@ -1,7 +1,4 @@
 brave-bin
-caelestia-shell
-caelestia-gif
-caelestia-cli
 f3
 gitkraken
 grub-customizer
