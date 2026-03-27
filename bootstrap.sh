@@ -324,13 +324,29 @@ configure_swap_hibernate() {
 	[[ -n "$resume_uuid" ]] || die "No se pudo calcular UUID de resume"
 	[[ -n "$resume_offset" ]] || die "No se pudo calcular resume_offset"
 
-	if [[ -f /etc/default/grub ]]; then
-		sed -i -E 's/(^GRUB_CMDLINE_LINUX_DEFAULT=")([^"]*)"/\1\2"/' /etc/default/grub
-		sed -i -E 's/(resume=UUID=[^ ]+|resume_offset=[^ ]+)//g' /etc/default/grub
-		sed -i -E 's/  +/ /g' /etc/default/grub
-		sed -i -E "s|^(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*)\"|\1 resume=UUID=${resume_uuid} resume_offset=${resume_offset}\"|" /etc/default/grub
+	if [[ ! -f /etc/default/grub ]]; then
+		touch /etc/default/grub
+	fi
+
+	local current_cmdline cleaned_cmdline new_cmdline
+	current_cmdline="$(awk -F= '/^GRUB_CMDLINE_LINUX_DEFAULT=/{sub(/^GRUB_CMDLINE_LINUX_DEFAULT=/,""); print; exit}' /etc/default/grub || true)"
+	# Quita comillas simples/dobles externas si existen.
+	current_cmdline="${current_cmdline#\"}"
+	current_cmdline="${current_cmdline%\"}"
+	current_cmdline="${current_cmdline#\'}"
+	current_cmdline="${current_cmdline%\'}"
+
+	cleaned_cmdline="$(printf '%s' "$current_cmdline" | sed -E 's/(^|[[:space:]])resume=UUID=[^[:space:]]+//g; s/(^|[[:space:]])resume_offset=[^[:space:]]+//g; s/[[:space:]]+/ /g; s/^ //; s/ $//')"
+	if [[ -n "$cleaned_cmdline" ]]; then
+		new_cmdline="${cleaned_cmdline} resume=UUID=${resume_uuid} resume_offset=${resume_offset}"
 	else
-		echo "GRUB_CMDLINE_LINUX_DEFAULT=\"resume=UUID=${resume_uuid} resume_offset=${resume_offset}\"" > /etc/default/grub
+		new_cmdline="resume=UUID=${resume_uuid} resume_offset=${resume_offset}"
+	fi
+
+	if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub; then
+		sed -i -E "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*$|GRUB_CMDLINE_LINUX_DEFAULT=\"${new_cmdline}\"|" /etc/default/grub
+	else
+		echo "GRUB_CMDLINE_LINUX_DEFAULT=\"${new_cmdline}\"" >> /etc/default/grub
 	fi
 
 	if [[ -f /etc/mkinitcpio.conf ]] && ! grep -qE '(^|[[:space:]])resume([[:space:]]|$)' /etc/mkinitcpio.conf; then
