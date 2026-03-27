@@ -222,7 +222,7 @@ setup_caelestia_from_github() {
 	fi
 
 	[[ -f "${caelestia_dir}/install.fish" ]] || die "No existe ${caelestia_dir}/install.fish"
-	if ! sudo -u "${TARGET_USER}" env HOME="${TARGET_HOME}" fish "${caelestia_dir}/install.fish"; then
+	if ! sudo -u "${TARGET_USER}" env HOME="${TARGET_HOME}" fish "${caelestia_dir}/install.fish" --noconfirm; then
 		die "Fallo instalando Caelestia desde GitHub"
 	fi
 }
@@ -241,15 +241,12 @@ apply_overlays() {
 	if [[ -d "${OVERLAYS_DIR}/home" ]]; then
 		cp -af "${OVERLAYS_DIR}/home/." "$home_dst/"
 
-		# Hypr vive en Caelestia; copiamos al destino real y dejamos symlink en .config.
+		# Hypr vive en Caelestia; copiamos solo el contenido al destino de .config/hypr.
 		if [[ -e "${OVERLAYS_DIR}/home/.config/hypr" ]]; then
-			cp -aLf "${OVERLAYS_DIR}/home/.config/hypr/." "$home_dst/.local/share/caelestia/hypr/" || warn "No se pudo copiar overlay de hypr"
-			rm -rf "$home_dst/.config/hypr"
-			ln -s "$home_dst/.local/share/caelestia/hypr" "$home_dst/.config/hypr"
+			cp -aLf "${OVERLAYS_DIR}/home/.config/hypr/*" "$home_dst/.local/share/caelestia/hypr/" || warn "No se pudo copiar overlay de hypr"
 		fi
 
 		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst"
-		chown -h "${TARGET_USER}:${TARGET_USER}" "$home_dst/.config/hypr" 2>/dev/null || true
 	fi
 
 	log "Aplicando overlays de share"
