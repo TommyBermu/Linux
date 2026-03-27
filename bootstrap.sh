@@ -379,7 +379,8 @@ main() {
 	configure_swap_hibernate
 	enable_services
 
-    cp -r "${REPO_DIR}/share/Wallpapers" "${TARGET_HOME}/Pictures/Wallpapers/"
+	mkdir -p "${TARGET_HOME}/Pictures/"
+    cp -r "${REPO_DIR}/share/Wallpapers" "${TARGET_HOME}/Pictures/"
 	chown -R "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/Pictures/Wallpapers"
  
 	log "Bootstrap completo para ${TARGET_USER} (${TARGET_HOME})"
