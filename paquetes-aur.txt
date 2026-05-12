@@ -1,4 +1,6 @@
+appeditor-git
 brave-bin
+downgrade
 f3
 gitkraken
 grub-customizer

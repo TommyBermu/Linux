@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Inicia Docker (si no está corriendo)
+sudo systemctl start docker
+
+# Inicia Ollama en background
+ollama serve > ~/.ollama/ollama.log 2>&1 &
+OLLAMA_PID=$!
+
+# Espera a que Ollama esté listo
+sleep 3
+
+# Elimina contenedor anterior si existe
+docker rm -f open-webui 2>/dev/null
+
+# Inicia contenedor Open WebUI
+docker run -d --network=host -v open-webui:/app/backend/data -e OLLAMA_BASE_URL=http://127.0.0.1:11434 --name open-webui --restart always ghcr.io/open-webui/open-webui:main
+
+while ! curl -s http://localhost:8080 > /dev/null 2>&1; do
+  sleep 2
+done
+
+# Espera a que Open WebUI esté listo
+sleep 2
+
+# Abre el navegador
+xdg-open http://localhost:8080
+
+echo "Ollama y Open WebUI iniciados"
