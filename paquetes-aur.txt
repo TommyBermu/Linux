@@ -2,11 +2,15 @@ appeditor-git
 brave-bin
 downgrade
 f3
+flashpoint-launcher-bin
 gitkraken
 grub-customizer
+libfprint-2-tod1-elan
 linux-wifi-hotspot
 quickshell-git
+rar
 spotify
 visual-studio-code-bin
+webcamoid
 ytmdesktop
 zapzap

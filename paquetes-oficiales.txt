@@ -15,8 +15,11 @@ cups
 cups-pk-helper
 docker
 docker-compose
+evil-winrm
 exfatprogs
+firefox
 firejail
+foot
 fish
 fprintd
 gparted
@@ -32,7 +35,6 @@ hyprland
 hyprlock
 hyprpolkitagent
 imv
-intel-media-driver
 kanshi
 kde-cli-tools
 kitty
@@ -56,12 +58,14 @@ nodejs
 noto-fonts-emoji
 ntfs-3g
 nwg-displays
+nwg-look
 obs-studio
 okular
 openssh
 openvpn
 os-prober
 pacman-contrib
+papirus-icon-theme
 paru
 perl-config-simple
 pipewire
@@ -71,6 +75,7 @@ power-profiles-daemon
 proton-vpn-gtk-app
 pybind11
 python-pip
+qemu-system-x86
 qt6-wayland
 ranger
 reflector
@@ -84,8 +89,9 @@ smartmontools
 sof-firmware
 sudo
 system-config-printer
-tlp
-tlp-rdw
+termdown
+thegarvester
+timeshift
 tmux
 torbrowser-launcher
 tree

@@ -163,3 +163,4 @@ alias flipacoin='echo $(( RANDOM % 2 )) | sed "s/0/Cara/;s/1/Sello/"'
 alias actz="paru -Syu && paru -c"
 export EDITOR=nvim
 export VISUAL=nvim
+export ELECTRON_PASSWORD_STORE=kwallet
