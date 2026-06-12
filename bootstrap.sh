@@ -26,7 +26,7 @@ die() {
 
 require_root() {
 	if [[ $EUID -ne 0 ]]; then
-		die "Ejecuta con sudo: sudo bash ${REPO_DIR}/bootstrap.sh"
+		die "Ejecuta con sudo: sudo ${REPO_DIR}/bootstrap.sh"
 	fi
 }
 
@@ -104,23 +104,39 @@ setup_nvim_tmux() {
 }
 
 copy_repo_config() {
-	log "Aplicando pacman.conf/mirrorlist del overlay"
+	log "Aplicando configuracion de pacman"
 
 	if [[ -f "${OVERLAYS_DIR}/etc/pacman.conf" ]]; then
 		cp -f "${OVERLAYS_DIR}/etc/pacman.conf" /etc/pacman.conf
 	fi
 
-	if [[ -f "${OVERLAYS_DIR}/etc/pacman.d/mirrorlist" ]]; then
-		mkdir -p /etc/pacman.d
-		cp -f "${OVERLAYS_DIR}/etc/pacman.d/mirrorlist" /etc/pacman.d/mirrorlist
-	fi
-
-	if [[ -f "${OVERLAYS_DIR}/etc/pacman.d/blackarch-mirrorlist" ]]; then
-		mkdir -p /etc/pacman.d
-		cp -f "${OVERLAYS_DIR}/etc/pacman.d/blackarch-mirrorlist" /etc/pacman.d/blackarch-mirrorlist
-	fi
+	setup_blackarch_repo
 
 	pacman -Syy --noconfirm
+}
+
+setup_blackarch_repo() {
+	log "Configurando BlackArch (obligatorio) con strap.sh oficial"
+	command -v curl >/dev/null 2>&1 || die "Falta curl; instala curl y vuelve a ejecutar"
+
+	local tmp_strap
+	tmp_strap="$(mktemp /tmp/blackarch-strap.XXXXXX.sh)"
+	if ! curl -fsSL https://blackarch.org/strap.sh -o "$tmp_strap"; then
+		rm -f "$tmp_strap"
+		die "No se pudo descargar strap.sh de BlackArch"
+	fi
+
+	chmod +x "$tmp_strap"
+	if ! bash "$tmp_strap"; then
+		rm -f "$tmp_strap"
+		die "Fallo ejecutando strap.sh de BlackArch"
+	fi
+
+	rm -f "$tmp_strap"
+
+	if [[ ! -f /etc/pacman.d/blackarch-mirrorlist ]]; then
+		die "BlackArch no quedo configurado: falta /etc/pacman.d/blackarch-mirrorlist"
+	fi
 }
 
 read_pkg_list() {
@@ -179,10 +195,36 @@ install_aur_packages() {
 		return 0
 	fi
 
-	local pkg
-	for pkg in "${aur_pkgs[@]}"; do
-		sudo -u "$TARGET_USER" bash -lc "paru -S --noconfirm --needed '$pkg'" || warn "Fallo instalando AUR ${pkg}"
-	done
+	local aur_payload
+	aur_payload="$(printf '%s\n' "${aur_pkgs[@]}")"
+
+	if ! sudo -u "$TARGET_USER" AUR_PAYLOAD="$aur_payload" bash -lc '
+		set -euo pipefail
+		mapfile -t aur_pkgs <<< "$AUR_PAYLOAD"
+		paru -S --noconfirm --needed --sudoloop "${aur_pkgs[@]}"
+	'; then
+		warn "Fallo instalando uno o mas paquetes AUR en la ejecucion conjunta"
+	fi
+}
+
+setup_caelestia_from_github() {
+	local caelestia_dir="${TARGET_HOME}/.local/share/caelestia"
+
+	log "Instalando Caelestia desde GitHub"
+	command -v fish >/dev/null 2>&1 || die "Falta fish; agrega fish a paquetes oficiales"
+	sudo -u "${TARGET_USER}" mkdir -p "${TARGET_HOME}/.local/share"
+
+	if [[ ! -d "${caelestia_dir}/.git" ]]; then
+		rm -rf "${caelestia_dir}"
+		sudo -u "${TARGET_USER}" git clone --depth 1 https://github.com/caelestia-dots/caelestia.git "${caelestia_dir}"
+	else
+		sudo -u "${TARGET_USER}" git -C "${caelestia_dir}" pull --ff-only || true
+	fi
+
+	[[ -f "${caelestia_dir}/install.fish" ]] || die "No existe ${caelestia_dir}/install.fish"
+	if ! sudo -u "${TARGET_USER}" env HOME="${TARGET_HOME}" fish "${caelestia_dir}/install.fish" --noconfirm; then
+		die "Fallo instalando Caelestia desde GitHub"
+	fi
 }
 
 apply_overlays() {
@@ -191,13 +233,26 @@ apply_overlays() {
 	log "Aplicando overlays de binarios"
 	if [[ -d "${OVERLAYS_DIR}/bin" ]]; then
 		mkdir -p /usr/local/bin
-		cp -af "${OVERLAYS_DIR}/bin/." /usr/local/bin/
+		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/bin/." /usr/local/bin/
 		chmod -R a+rx /usr/local/bin
 	fi
 
 	log "Aplicando overlays de HOME"
 	if [[ -d "${OVERLAYS_DIR}/home" ]]; then
-		cp -af "${OVERLAYS_DIR}/home/." "$home_dst/"
+		# Copia HOME completo excepto .config/hypr para evitar conflicto dir -> symlink.
+		(
+			cd "${OVERLAYS_DIR}/home"
+			tar --exclude='.config/hypr' -cf - .
+		) | (
+			cd "$home_dst"
+			tar -xf -
+		)
+
+		# Hypr vive en Caelestia; copiamos solo el contenido al destino de .config/hypr.
+		if [[ -e "${OVERLAYS_DIR}/home/.config/hypr" ]]; then
+			cp -aLf "${OVERLAYS_DIR}/home/.config/hypr/." "$home_dst/.local/share/caelestia/hypr/" || warn "No se pudo copiar overlay de hypr"
+		fi
+
 		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst"
 	fi
 
@@ -210,31 +265,31 @@ apply_overlays() {
 
 	log "Aplicando overlays de quickshell"
 	if [[ -d "${OVERLAYS_DIR}/etc/quickshell" ]]; then
-		cp -af "${OVERLAYS_DIR}/etc/quickshell/bongocat.git" /etc/xdg/quickshell/caelestia/assets/
-        cp -af "${OVERLAYS_DIR}/etc/quickshell/Content.qml" /etc/xdg/quickshell/caelestia/modules/session/
+		cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/quickshell/bongocat.gif" /etc/xdg/quickshell/caelestia/assets/bongocat.gif
+        cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/quickshell/Content.qml" /etc/xdg/quickshell/caelestia/modules/session/Content.qml
 	fi
 
 	log "Aplicando overlays de SDDM"
 	if [[ -f "${OVERLAYS_DIR}/etc/sddm/sddm.conf" ]]; then
-		cp -f "${OVERLAYS_DIR}/etc/sddm/sddm.conf" /etc/sddm.conf
+		cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/sddm/sddm.conf" /etc/sddm.conf
 	fi
 	if [[ -d "${OVERLAYS_DIR}/etc/sddm/sugar-candy" ]]; then
 		mkdir -p /usr/share/sddm/themes/sugar-candy
-		cp -af "${OVERLAYS_DIR}/etc/sddm/sugar-candy/." /usr/share/sddm/themes/sugar-candy/
+		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/sddm/sugar-candy/." /usr/share/sddm/themes/sugar-candy/
 	fi
 
 	log "Aplicando overlays de GRUB"
 	if [[ -f "${OVERLAYS_DIR}/etc/grub/grub" ]]; then
-		cp -f "${OVERLAYS_DIR}/etc/grub/grub" /etc/default/grub
+		cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/grub/grub" /etc/default/grub
 	fi
 	if [[ -d "${OVERLAYS_DIR}/etc/grub/grub.d" ]]; then
 		mkdir -p /etc/grub.d
-		cp -af "${OVERLAYS_DIR}/etc/grub/grub.d/." /etc/grub.d/
+		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/grub/grub.d/." /etc/grub.d/
 		chmod -R a+rx /etc/grub.d
 	fi
 	if [[ -d "${OVERLAYS_DIR}/etc/grub/yorha" ]]; then
 		mkdir -p /boot/grub/themes/yorha
-		cp -af "${OVERLAYS_DIR}/etc/grub/yorha/." /boot/grub/themes/yorha/
+		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/grub/yorha/." /boot/grub/themes/yorha/
 	fi
 }
 
@@ -269,13 +324,29 @@ configure_swap_hibernate() {
 	[[ -n "$resume_uuid" ]] || die "No se pudo calcular UUID de resume"
 	[[ -n "$resume_offset" ]] || die "No se pudo calcular resume_offset"
 
-	if [[ -f /etc/default/grub ]]; then
-		sed -i -E 's/(^GRUB_CMDLINE_LINUX_DEFAULT=")([^"]*)"/\1\2"/' /etc/default/grub
-		sed -i -E 's/(resume=UUID=[^ ]+|resume_offset=[^ ]+)//g' /etc/default/grub
-		sed -i -E 's/  +/ /g' /etc/default/grub
-		sed -i -E "s|^(GRUB_CMDLINE_LINUX_DEFAULT=\"[^\"]*)\"|\1 resume=UUID=${resume_uuid} resume_offset=${resume_offset}\"|" /etc/default/grub
+	if [[ ! -f /etc/default/grub ]]; then
+		touch /etc/default/grub
+	fi
+
+	local current_cmdline cleaned_cmdline new_cmdline
+	current_cmdline="$(awk -F= '/^GRUB_CMDLINE_LINUX_DEFAULT=/{sub(/^GRUB_CMDLINE_LINUX_DEFAULT=/,""); print; exit}' /etc/default/grub || true)"
+	# Quita comillas simples/dobles externas si existen.
+	current_cmdline="${current_cmdline#\"}"
+	current_cmdline="${current_cmdline%\"}"
+	current_cmdline="${current_cmdline#\'}"
+	current_cmdline="${current_cmdline%\'}"
+
+	cleaned_cmdline="$(printf '%s' "$current_cmdline" | sed -E 's/(^|[[:space:]])resume=UUID=[^[:space:]]+//g; s/(^|[[:space:]])resume_offset=[^[:space:]]+//g; s/[[:space:]]+/ /g; s/^ //; s/ $//')"
+	if [[ -n "$cleaned_cmdline" ]]; then
+		new_cmdline="${cleaned_cmdline} resume=UUID=${resume_uuid} resume_offset=${resume_offset}"
 	else
-		echo "GRUB_CMDLINE_LINUX_DEFAULT=\"resume=UUID=${resume_uuid} resume_offset=${resume_offset}\"" > /etc/default/grub
+		new_cmdline="resume=UUID=${resume_uuid} resume_offset=${resume_offset}"
+	fi
+
+	if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT=' /etc/default/grub; then
+		sed -i -E "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*$|GRUB_CMDLINE_LINUX_DEFAULT=\"${new_cmdline}\"|" /etc/default/grub
+	else
+		echo "GRUB_CMDLINE_LINUX_DEFAULT=\"${new_cmdline}\"" >> /etc/default/grub
 	fi
 
 	if [[ -f /etc/mkinitcpio.conf ]] && ! grep -qE '(^|[[:space:]])resume([[:space:]]|$)' /etc/mkinitcpio.conf; then
@@ -302,12 +373,15 @@ main() {
 	copy_repo_config
 	install_official_packages
 	install_aur_packages
+	setup_caelestia_from_github
 	apply_overlays
 	setup_nvim_tmux
 	configure_swap_hibernate
 	enable_services
 
+	mkdir -p "${TARGET_HOME}/Pictures/"
     cp -r "${REPO_DIR}/share/Wallpapers" "${TARGET_HOME}/Pictures/"
+	chown -R "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/Pictures/Wallpapers"
  
 	log "Bootstrap completo para ${TARGET_USER} (${TARGET_HOME})"
 	log "Reinicia para validar SDDM, GRUB theme y hibernacion"

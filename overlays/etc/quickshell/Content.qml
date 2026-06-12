@@ -2,23 +2,23 @@ pragma ComponentBehavior: Bound
 
 import qs.components
 import qs.services
-import qs.config
 import qs.utils
 import Quickshell
 import QtQuick
+import Caelestia.Config
 
 Column {
     id: root
 
-    required property PersistentProperties visibilities
+    required property DrawerVisibilities visibilities
 
-    padding: Appearance.padding.large
-    spacing: Appearance.spacing.large
+    padding: Tokens.padding.large
+    spacing: Tokens.spacing.large
 
     SessionButton {
         id: shutdown
 
-        icon: "power_settings_new"
+        icon: Config.session.icons.shutdown
         command: Config.session.commands.shutdown
 
         KeyNavigation.down: logout
@@ -26,19 +26,19 @@ Column {
         Component.onCompleted: forceActiveFocus()
 
         Connections {
-            target: root.visibilities
-
             function onLauncherChanged(): void {
                 if (!root.visibilities.launcher)
                 logout.forceActiveFocus();
             }
+
+            target: root.visibilities
         }
     }
 
     SessionButton {
         id: logout
 
-        icon: "logout"
+        icon: Config.session.icons.logout
         command: Config.session.commands.logout
 
         KeyNavigation.up: shutdown
@@ -49,7 +49,7 @@ Column {
     SessionButton {
         id: hibernate
 
-        icon: "downloading"
+        icon: Config.session.icons.hibernate
         command: Config.session.commands.hibernate
 
         KeyNavigation.up: hibernate
@@ -59,7 +59,7 @@ Column {
     SessionButton {
         id: reboot
 
-        icon: "cached"
+        icon: Config.session.icons.reboot
         command: Config.session.commands.reboot
 
         KeyNavigation.up: hibernate
@@ -71,10 +71,10 @@ Column {
         required property string icon
         required property list<string> command
 
-        implicitWidth: Config.session.sizes.button
-        implicitHeight: Config.session.sizes.button
+        implicitWidth: Tokens.sizes.session.button
+        implicitHeight: Tokens.sizes.session.button
 
-        radius: Appearance.rounding.large
+        radius: Tokens.rounding.large
         color: button.activeFocus ? Colours.palette.m3secondaryContainer : Colours.tPalette.m3surfaceContainer
 
         Keys.onEnterPressed: Quickshell.execDetached(button.command)
@@ -85,10 +85,10 @@ Column {
                 return;
 
             if (event.modifiers & Qt.ControlModifier) {
-                if (event.key === Qt.Key_J && KeyNavigation.down) {
+                if ((event.key === Qt.Key_J || event.key === Qt.Key_N) && KeyNavigation.down) {
                     KeyNavigation.down.focus = true;
                     event.accepted = true;
-                } else if (event.key === Qt.Key_K && KeyNavigation.up) {
+                } else if ((event.key === Qt.Key_K || event.key === Qt.Key_P) && KeyNavigation.up) {
                     KeyNavigation.up.focus = true;
                     event.accepted = true;
                 }
@@ -106,10 +106,7 @@ Column {
         StateLayer {
             radius: parent.radius
             color: button.activeFocus ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
-
-            function onClicked(): void {
-                Quickshell.execDetached(button.command);
-            }
+            onClicked: Quickshell.execDetached(button.command)
         }
 
         MaterialIcon {
@@ -117,7 +114,7 @@ Column {
 
             text: button.icon
             color: button.activeFocus ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
-            font.pointSize: Appearance.font.size.extraLarge
+            font.pointSize: Tokens.font.size.extraLarge
             font.weight: 500
         }
     }

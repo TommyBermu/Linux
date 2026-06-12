@@ -153,10 +153,7 @@ source "$OSH"/oh-my-bash.sh
 # plugins, and themes. Aliases can be placed here, though oh-my-bash
 # users are encouraged to define aliases within the OSH_CUSTOM folder.
 # For a full list of active aliases, run `alias`.
-#
-# Example aliases
-# alias bashconfig="mate ~/.bashrc"
-# alias ohmybash="mate ~/.oh-my-bash"
+
 alias py="python3"
 alias tmuxl="tmux list-sessions"
 alias windows="sudo mount -t ntfs /dev/nvme0n1p3 /mnt/windows" 
@@ -166,3 +163,4 @@ alias flipacoin='echo $(( RANDOM % 2 )) | sed "s/0/Cara/;s/1/Sello/"'
 alias actz="paru -Syu && paru -c"
 export EDITOR=nvim
 export VISUAL=nvim
+export ELECTRON_PASSWORD_STORE=kwallet
