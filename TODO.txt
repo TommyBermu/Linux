@@ -1,0 +1,11 @@
+que el repo de blackarch se instale correctamente en /etc/pacman.conf
+
+que se instalen los paquetes del AUR, ahorita no lo hace xd
+
+cambiar el directorios de los wallpapers
+
+que descargue el .sh para poner los repos de cachyOS v3
+
+actualizar el tema de sddm
+
+ver como hago lo del logo de lenovo con lenovo-logo-changer
