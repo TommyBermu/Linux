@@ -2,6 +2,4 @@ que el repo de blackarch se instale correctamente en /etc/pacman.conf
 
 que se instalen los paquetes del AUR, ahorita no lo hace xd
 
-que descargue el .sh para poner los repos de cachyOS v3
-
 hacer que el Status.pm de nipe se ponga en /usr/share/nipe/lib/Nipe/Utils/Status.pm y no en .config

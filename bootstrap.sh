@@ -103,6 +103,32 @@ setup_nvim_tmux() {
 	chown -R "${TARGET_USER}:${TARGET_USER}" "${nvim_dir}" "${tmux_dir}"
 }
 
+setup_cachyos_repo() {
+	log "Configurando repos de CachyOS con cachyos-repo.sh oficial"
+	command -v curl >/dev/null 2>&1 || die "Falta curl; instala curl y vuelve a ejecutar"
+	pacman -S --noconfirm --needed gawk || true
+
+	local tmp_dir
+	tmp_dir="$(mktemp -d /tmp/cachyos-repo.XXXXXX)"
+
+	if ! curl -fsSL https://mirror.cachyos.org/cachyos-repo.tar.xz -o "${tmp_dir}/cachyos-repo.tar.xz"; then
+		rm -rf "$tmp_dir"
+		die "No se pudo descargar cachyos-repo.tar.xz de CachyOS"
+	fi
+
+	if ! tar -xf "${tmp_dir}/cachyos-repo.tar.xz" -C "$tmp_dir"; then
+		rm -rf "$tmp_dir"
+		die "No se pudo extraer cachyos-repo.tar.xz"
+	fi
+
+	if ! (cd "${tmp_dir}/cachyos-repo" && bash ./cachyos-repo.sh --install); then
+		rm -rf "$tmp_dir"
+		die "Fallo ejecutando cachyos-repo.sh de CachyOS"
+	fi
+
+	rm -rf "$tmp_dir"
+}
+
 setup_blackarch_repo() {
     pacman -Syy --noconfirm
 	log "Configurando BlackArch (obligatorio) con strap.sh oficial"
@@ -360,6 +386,7 @@ main() {
 	require_files
 	require_target_user
     setup_oh_my_bash
+	setup_cachyos_repo
 	setup_blackarch_repo
 	install_official_packages
 	install_aur_packages
