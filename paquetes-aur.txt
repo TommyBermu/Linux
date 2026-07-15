@@ -16,3 +16,5 @@ visual-studio-code-bin
 webcamoid
 ytmdesktop
 zapzap
+caelestia-shell
+caelestia-cli
