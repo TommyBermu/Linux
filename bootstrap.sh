@@ -406,9 +406,30 @@ configure_swap_hibernate() {
 enable_services() {
 	log "Habilitando servicios base"
 	systemctl enable sddm >/dev/null 2>&1 || warn "No se pudo habilitar sddm"
-	systemctl enable docker >/dev/null 2>&1 || true
+	systemctl enable --now docker >/dev/null 2>&1 || warn "No se pudo habilitar/iniciar docker"
 	systemctl enable bluetooth >/dev/null 2>&1 || true
 	systemctl enable ufw >/dev/null 2>&1 || true
+}
+
+setup_portainer() {
+	log "Desplegando Portainer"
+	command -v docker >/dev/null 2>&1 || die "Falta docker; agrega docker a paquetes oficiales"
+	systemctl is-active --quiet docker || systemctl start docker || die "No se pudo iniciar docker para desplegar Portainer"
+
+	docker volume inspect portainer_data >/dev/null 2>&1 || docker volume create portainer_data >/dev/null
+
+	if docker ps -a --format '{{.Names}}' | grep -qx portainer; then
+		log "El contenedor portainer ya existe; se omite creacion"
+	else
+		docker run -d \
+			-p 8000:8000 \
+			-p 9443:9443 \
+			--name portainer \
+			--restart=always \
+			-v /var/run/docker.sock:/var/run/docker.sock \
+			-v portainer_data:/data \
+			portainer/portainer-ce:latest || warn "Fallo desplegando Portainer"
+	fi
 }
 
 main() {
@@ -426,6 +447,7 @@ main() {
 	setup_nvim_tmux
 	configure_swap_hibernate
 	enable_services
+	setup_portainer
 
 	mkdir -p "${TARGET_HOME}/Pictures/"
     cp -r "${REPO_DIR}/share/Wallpapers" "${TARGET_HOME}/Pictures/"
@@ -436,6 +458,8 @@ main() {
 
 	log "Clave SSH publica de ${TARGET_USER} (agregala en https://github.com/settings/keys):"
 	cat "${TARGET_HOME}/.ssh/id_ed25519.pub"
+
+	log "Portainer disponible en https://localhost:9443 (crea el usuario admin en el primer acceso)"
 }
 
 main "$@"
