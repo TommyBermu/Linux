@@ -289,30 +289,30 @@ apply_overlays() {
 		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst/Pictures"
 	fi
 
-	log "Aplicando overlays de quickshell"
-	if [[ -d "${OVERLAYS_DIR}/etc/quickshell" ]]; then
-		cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/quickshell/bongocat.gif" /etc/xdg/quickshell/caelestia/assets/bongocat.gif
-        cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/quickshell/Content.qml" /etc/xdg/quickshell/caelestia/modules/session/Content.qml
-	fi
+	#log "Aplicando overlays de quickshell"
+	#if [[ -d "${OVERLAYS_DIR}/etc/quickshell" ]]; then
+	#	cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/quickshell/bongocat.gif" /etc/xdg/quickshell/caelestia/assets/bongocat.gif
+    #    cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/quickshell/Content.qml" /etc/xdg/quickshell/caelestia/modules/session/Content.qml
+	#fi
 
 	log "Aplicando overlays de SDDM"
 	if [[ -f "${OVERLAYS_DIR}/etc/sddm/sddm.conf" ]]; then
 		cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/sddm/sddm.conf" /etc/sddm.conf
 	fi
-	if [[ -d "${OVERLAYS_DIR}/etc/sddm/sugar-candy" ]]; then
+	if [[ -d "${OVERLAYS_DIR}/etc/sddm/pixie" ]]; then
 		mkdir -p /usr/share/sddm/themes/sugar-candy
 		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/sddm/pixie/." /usr/share/sddm/themes/pixie/
 	fi
 
 	log "Aplicando overlays de GRUB"
-	if [[ -f "${OVERLAYS_DIR}/etc/grub/grub" ]]; then
-		cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/grub/grub" /etc/default/grub
-	fi
-	if [[ -d "${OVERLAYS_DIR}/etc/grub/grub.d" ]]; then
-		mkdir -p /etc/grub.d
-		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/grub/grub.d/." /etc/grub.d/
-		chmod -R a+rx /etc/grub.d
-	fi
+	#if [[ -f "${OVERLAYS_DIR}/etc/grub/grub" ]]; then
+	#	cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/grub/grub" /etc/default/grub
+	#fi
+	#if [[ -d "${OVERLAYS_DIR}/etc/grub/grub.d" ]]; then
+	#	mkdir -p /etc/grub.d
+	#	cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/grub/grub.d/." /etc/grub.d/
+	#	chmod -R a+rx /etc/grub.d
+	#fi
 	if [[ -d "${OVERLAYS_DIR}/etc/grub/yorha" ]]; then
 		mkdir -p /boot/grub/themes/yorha
 		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/grub/yorha/." /boot/grub/themes/yorha/
@@ -427,10 +427,6 @@ main() {
 	configure_swap_hibernate
 	enable_services
 	setup_portainer
-
-	mkdir -p "${TARGET_HOME}/Pictures/"
-    cp -r "${REPO_DIR}/share/Wallpapers" "${TARGET_HOME}/Pictures/"
-	chown -R "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/Pictures/Wallpapers"
  
 	log "Bootstrap completo para ${TARGET_USER} (${TARGET_HOME})"
 	log "Reinicia para validar SDDM, GRUB theme y hibernacion"
