@@ -43,6 +43,32 @@ require_target_user() {
 	[[ -d "${TARGET_HOME}" ]] || die "No existe HOME de ${TARGET_USER}: ${TARGET_HOME}"
 }
 
+setup_ssh_key() {
+	local ssh_dir="${TARGET_HOME}/.ssh"
+	local key_file="${ssh_dir}/id_ed25519"
+
+	log "Configurando clave SSH para ${TARGET_USER}"
+	pacman -S --noconfirm --needed openssh || true
+
+	sudo -u "${TARGET_USER}" mkdir -p "${ssh_dir}"
+	chmod 700 "${ssh_dir}"
+
+	if [[ ! -f "${key_file}" ]]; then
+		sudo -u "${TARGET_USER}" ssh-keygen -t ed25519 -C "${TARGET_USER}@$(hostname)" -f "${key_file}" -N ""
+	else
+		log "Ya existe ${key_file}; se reutiliza"
+	fi
+
+	if ! sudo -u "${TARGET_USER}" grep -q '^github\.com ' "${ssh_dir}/known_hosts" 2>/dev/null; then
+		sudo -u "${TARGET_USER}" bash -c "ssh-keyscan -t ed25519 github.com >> '${ssh_dir}/known_hosts' 2>/dev/null" || true
+	fi
+
+	chown -R "${TARGET_USER}:${TARGET_USER}" "${ssh_dir}"
+	chmod 600 "${key_file}"
+	chmod 644 "${key_file}.pub"
+	[[ -f "${ssh_dir}/known_hosts" ]] && chmod 644 "${ssh_dir}/known_hosts"
+}
+
 setup_oh_my_bash() {
 	local omb_dir="${TARGET_HOME}/.config/oh-my-bash"
 
@@ -75,6 +101,9 @@ setup_nvim_tmux() {
 	else
 		sudo -u "${TARGET_USER}" git -C "${nvim_dir}" pull --ff-only || true
 	fi
+	# Repo propio: se clona por HTTPS (no requiere que la clave SSH ya este
+	# autorizada en GitHub) pero el remote queda en SSH para poder hacer push.
+	sudo -u "${TARGET_USER}" git -C "${nvim_dir}" remote set-url origin git@github.com:TommyBermu/nvim.git
 
 	log "Configurando tmux desde GitHub"
 	if [[ ! -d "${tmux_dir}/.git" ]]; then
@@ -83,6 +112,7 @@ setup_nvim_tmux() {
 	else
 		sudo -u "${TARGET_USER}" git -C "${tmux_dir}" pull --ff-only || true
 	fi
+	sudo -u "${TARGET_USER}" git -C "${tmux_dir}" remote set-url origin git@github.com:TommyBermu/tmux.git
 
 	log "Instalando TPM"
 	sudo -u "${TARGET_USER}" mkdir -p "${tmux_dir}/plugins"
@@ -385,6 +415,7 @@ main() {
 	require_root
 	require_files
 	require_target_user
+	setup_ssh_key
     setup_oh_my_bash
 	setup_cachyos_repo
 	setup_blackarch_repo
@@ -402,6 +433,9 @@ main() {
  
 	log "Bootstrap completo para ${TARGET_USER} (${TARGET_HOME})"
 	log "Reinicia para validar SDDM, GRUB theme y hibernacion"
+
+	log "Clave SSH publica de ${TARGET_USER} (agregala en https://github.com/settings/keys):"
+	cat "${TARGET_HOME}/.ssh/id_ed25519.pub"
 }
 
 main "$@"
