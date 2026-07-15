@@ -1,0 +1,50 @@
+#!/bin/sh
+exec tail -n +3 $0
+# This file provides an easy way to add custom menu entries.  Simply type the
+# menu entries you want to add after this comment.  Be careful not to change
+# the 'exec tail' line above.
+menuentry "BlackArch" --class arch --class gnu-linux --class gnu --class os $menuentry_id_option 'gnulinux-linux-advanced-80ddb64f-cf0c-458e-a87c-605d151b617e' {
+	load_video
+	set gfxpayload=keep
+	insmod fat
+	insmod part_gpt
+	search --no-floppy --fs-uuid --set=root C84E-ADE4
+	echo	'Loading BlacArch ...'
+	chainloader /EFI/Linux/arch-linux.efi
+}
+menuentry "CarchyOS" --class arch --class gnu-linux --class gnu --class os $menuentry_id_option 'gnulinux-linux-cachyos-advanced-80ddb64f-cf0c-458e-a87c-605d151b617e' {
+	load_video
+	set gfxpayload=keep
+	insmod gzio
+	insmod part_gpt
+	insmod fat
+	search --no-floppy --fs-uuid --set=root C84E-ADE4
+	echo	'Loading CarchyOS ...'
+	linux	/vmlinuz-linux-cachyos root=UUID=80ddb64f-cf0c-458e-a87c-605d151b617e rw zswap.enabled=0 rootfstype=ext4 resume=UUID=80ddb64f-cf0c-458e-a87c-605d151b617e resume_offset=11333632
+	echo	'Loading initial ramdisk ...'
+	initrd	/amd-ucode.img /initramfs-linux-cachyos.img
+}
+menuentry "CarchyOS-hardened" --class arch --class gnu-linux --class gnu --class os $menuentry_id_option 'gnulinux-linux-cachyos-hardened-advanced-80ddb64f-cf0c-458e-a87c-605d151b617e' {
+	load_video
+	set gfxpayload=keep
+	insmod gzio
+	insmod part_gpt
+	insmod fat
+	search --no-floppy --fs-uuid --set=root C84E-ADE4
+	echo	'Loading CarchyOS-hardened ...'
+	linux	/vmlinuz-linux-cachyos-hardened root=UUID=80ddb64f-cf0c-458e-a87c-605d151b617e rw zswap.enabled=0 rootfstype=ext4 resume=UUID=80ddb64f-cf0c-458e-a87c-605d151b617e resume_offset=11333632
+	echo	'Loading initial ramdisk ...'
+	initrd	/amd-ucode.img /initramfs-linux-cachyos-hardened.img
+}
+menuentry "BlackArch-hardened" --class arch --class gnu-linux --class gnu --class os $menuentry_id_option 'gnulinux-linux-hardened-advanced-80ddb64f-cf0c-458e-a87c-605d151b617e' {
+	load_video
+	set gfxpayload=keep
+	insmod gzio
+	insmod part_gpt
+	insmod fat
+	search --no-floppy --fs-uuid --set=root C84E-ADE4
+	echo	'Loading BlackArch-hardened ...'
+	linux	/vmlinuz-linux-hardened root=UUID=80ddb64f-cf0c-458e-a87c-605d151b617e rw zswap.enabled=0 rootfstype=ext4 resume=UUID=80ddb64f-cf0c-458e-a87c-605d151b617e resume_offset=11333632
+	echo	'Loading initial ramdisk ...'
+	initrd	/amd-ucode.img /initramfs-linux-hardened.img
+}

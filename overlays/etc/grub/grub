@@ -1,9 +1,9 @@
 # GRUB boot loader configuration
 
-GRUB_DEFAULT="1"
-GRUB_TIMEOUT="6"
+GRUB_DEFAULT="CarchyOS"
+GRUB_TIMEOUT="5"
 GRUB_DISTRIBUTOR="Arch"
-GRUB_CMDLINE_LINUX_DEFAULT="resume=UUID=a993daf9-cc0b-4e2c-882c-e46eaf3e9038 resume_offset=50524160"
+GRUB_CMDLINE_LINUX_DEFAULT="resume=UUID=80ddb64f-cf0c-458e-a87c-605d151b617e resume_offset=11333632"
 GRUB_CMDLINE_LINUX="zswap.enabled=0 rootfstype=ext4"
 consoleblank="0"
 
@@ -63,3 +63,5 @@ GRUB_DISABLE_SUBMENU="y"
 # functionality install os-prober and uncomment to detect and include other
 # operating systems.
 GRUB_DISABLE_OS_PROBER="false"
+
+GRUB_SAVEDEFAULT="false"
