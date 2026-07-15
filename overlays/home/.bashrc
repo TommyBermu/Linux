@@ -156,11 +156,13 @@ source "$OSH"/oh-my-bash.sh
 
 alias py="python3"
 alias tmuxl="tmux list-sessions"
-alias windows="sudo mount -t ntfs /dev/nvme0n1p3 /mnt/windows" 
 alias tmuxrs="tmux rename-session"
 alias tat="tmux attach -t"
 alias flipacoin='echo $(( RANDOM % 2 )) | sed "s/0/Cara/;s/1/Sello/"'
 alias actz="paru -Syu && paru -c"
+alias templeos="qemu-system-x86_64 -enable-kvm -m 2048 -smp 2 -cdrom ~/templeOS/templeOS.iso -hda ~/templeOS/templeOS.img"
+alias windows="qemu-system-x86_64 -enable-kvm -m 4096 -smp 4 -cdrom ~/windows/windows11.iso -hda ~/windows/windows11.img"
 export EDITOR=nvim
 export VISUAL=nvim
+export TERMINAL=kitty
 export ELECTRON_PASSWORD_STORE=kwallet

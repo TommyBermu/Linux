@@ -4,9 +4,11 @@ downgrade
 f3
 flashpoint-launcher-bin
 gitkraken
+go
 grub-customizer
 libfprint-2-tod1-elan
 linux-wifi-hotspot
+postman-bin
 quickshell-git
 rar
 spotify

@@ -6,6 +6,6 @@ cambiar el directorios de los wallpapers
 
 que descargue el .sh para poner los repos de cachyOS v3
 
-actualizar el tema de sddm
+copiar el archivo del keyring de vscode, en config/code-algo.conf (creo)
 
-ver como hago lo del logo de lenovo con lenovo-logo-changer
+hacer que el Status.pm de nipe se ponga en /usr/share/nipe/lib/Nipe/Utils/Status.pm y no en .config

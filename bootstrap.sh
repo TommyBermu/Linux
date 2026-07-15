@@ -103,19 +103,8 @@ setup_nvim_tmux() {
 	chown -R "${TARGET_USER}:${TARGET_USER}" "${nvim_dir}" "${tmux_dir}"
 }
 
-copy_repo_config() {
-	log "Aplicando configuracion de pacman"
-
-	if [[ -f "${OVERLAYS_DIR}/etc/pacman.conf" ]]; then
-		cp -f "${OVERLAYS_DIR}/etc/pacman.conf" /etc/pacman.conf
-	fi
-
-	setup_blackarch_repo
-
-	pacman -Syy --noconfirm
-}
-
 setup_blackarch_repo() {
+    pacman -Syy --noconfirm
 	log "Configurando BlackArch (obligatorio) con strap.sh oficial"
 	command -v curl >/dev/null 2>&1 || die "Falta curl; instala curl y vuelve a ejecutar"
 
@@ -275,7 +264,7 @@ apply_overlays() {
 	fi
 	if [[ -d "${OVERLAYS_DIR}/etc/sddm/sugar-candy" ]]; then
 		mkdir -p /usr/share/sddm/themes/sugar-candy
-		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/sddm/sugar-candy/." /usr/share/sddm/themes/sugar-candy/
+		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/sddm/pixie/." /usr/share/sddm/themes/pixie/
 	fi
 
 	log "Aplicando overlays de GRUB"
@@ -370,7 +359,7 @@ main() {
 	require_files
 	require_target_user
     setup_oh_my_bash
-	copy_repo_config
+	setup_blackarch_repo
 	install_official_packages
 	install_aur_packages
 	setup_caelestia_from_github
