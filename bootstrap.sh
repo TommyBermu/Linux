@@ -247,9 +247,10 @@ apply_overlays() {
 
 	log "Aplicando overlays de share"
 	if [[ -d "${OVERLAYS_DIR}/share" ]]; then
-		mkdir -p "$home_dst/share"
-		cp -af "${OVERLAYS_DIR}/share/." "$home_dst/share/"
-		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst/share"
+		ln -s "${OVERLAYS_DIR}/share/Documents" "$home_dst/Documents"
+		ln -s "${OVERLAYS_DIR}/share/Pictures" "$home_dst/Pictures"
+		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst/Documents"
+		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst/Pictures"
 	fi
 
 	log "Aplicando overlays de quickshell"
