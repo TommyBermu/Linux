@@ -1,5 +1,9 @@
-que el repo de blackarch se instale correctamente en /etc/pacman.conf
-
-que se instalen los paquetes del AUR, ahorita no lo hace xd
+atualizar lista de paquetes
 
 hacer que el Status.pm de nipe se ponga en /usr/share/nipe/lib/Nipe/Utils/Status.pm y no en .config
+
+instalar los kernels de cachyos una vez instalado el repo
+
+ver que se instalen los paquetes de aur, no lo hace pq los hace en paralelo, no en serie, entonces con un error de un solo paquete ya F todo
+
+actualizar la config de grub, pues..... ver que si funciona
