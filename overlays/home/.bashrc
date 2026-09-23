@@ -161,8 +161,22 @@ alias tat="tmux attach -t"
 alias flipacoin='echo $(( RANDOM % 2 )) | sed "s/0/Cara/;s/1/Sello/"'
 alias actz="paru -Syu && paru -c"
 alias templeos="qemu-system-x86_64 -enable-kvm -m 2048 -smp 2 -cdrom ~/templeOS/templeOS.iso -hda ~/templeOS/templeOS.img"
+alias ctosdisk="qemu-img create -f qcow2 -o preallocation=full ~/templeOS/templeOS.img 2G"
 alias windows="qemu-system-x86_64 -enable-kvm -m 4096 -smp 4 -cdrom ~/windows/windows11.iso -hda ~/windows/windows11.img"
 export EDITOR=nvim
 export VISUAL=nvim
 export TERMINAL=kitty
-export ELECTRON_PASSWORD_STORE=kwallet
+
+venv() {
+    local ruta="${1:-.}"
+    local activate_script="$ruta/.venv/bin/activate"
+
+    if [ -f "$activate_script" ]; then
+        source "$activate_script"
+    else
+        echo "Error: No se encontró el entorno en '$activate_script'" >&2
+        return 1
+    fi
+}
+
+[[ "$TERM_PROGRAM" == "kiro" ]] && . "$(kiro --locate-shell-integration-path bash)"

@@ -23,11 +23,36 @@
             "tray": true
         },
         "showOnHover": true,
-        "status": {
-            "showAudio": false,
-            "showKbLayout": true,
-            "showLockStatus": true
-        },
+        "statusIcons": [
+            {
+                "enabled": true,
+                "id": "lockStatus"
+            },
+            {
+                "enabled": false,
+                "id": "audio"
+            },
+            {
+                "enabled": false,
+                "id": "microphone"
+            },
+            {
+                "enabled": true,
+                "id": "kbLayout"
+            },
+            {
+                "enabled": true,
+                "id": "network"
+            },
+            {
+                "enabled": true,
+                "id": "bluetooth"
+            },
+            {
+                "enabled": true,
+                "id": "battery"
+            }
+        ],
         "tray": {
             "background": false,
             "compact": false,
@@ -43,6 +68,11 @@
             "showWindowsOnSpecialWorkspaces": true,
             "shown": 4
         }
+    },
+    "border": {
+        "rounding": 1,
+        "smoothing": 0,
+        "thickness": 0
     },
     "dashboard": {
         "dragThreshold": 20,
