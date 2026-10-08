@@ -424,32 +424,99 @@ configure_swap_hibernate() {
 	grub-mkconfig -o /boot/grub/grub.cfg || warn "grub-mkconfig fallo"
 }
 
+setup_dns() {
+	log "Configurando DNS estatico (NetworkManager dns=none + resolv.conf)"
+
+	# NetworkManager no debe gestionar resolv.conf; usamos uno estatico.
+	local nm_src_dir="${OVERLAYS_DIR}/etc/NetworkManager/conf.d"
+	if [[ -d "$nm_src_dir" ]]; then
+		mkdir -p /etc/NetworkManager/conf.d
+		cp -rf --no-preserve=ownership "${nm_src_dir}/." /etc/NetworkManager/conf.d/
+	fi
+
+	# resolv.conf estatico (1.1.1.1 / 8.8.8.8). Si existe como symlink
+	# (p. ej. hacia systemd-resolved), lo reemplazamos por el archivo real.
+	if [[ -f "${OVERLAYS_DIR}/etc/resolv.conf" ]]; then
+		[[ -L /etc/resolv.conf ]] && rm -f /etc/resolv.conf
+		cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/resolv.conf" /etc/resolv.conf
+	fi
+}
+
 enable_services() {
 	log "Habilitando servicios base"
 	systemctl enable sddm >/dev/null 2>&1 || warn "No se pudo habilitar sddm"
 	systemctl enable --now docker >/dev/null 2>&1 || warn "No se pudo habilitar/iniciar docker"
 	systemctl enable bluetooth >/dev/null 2>&1 || true
 	systemctl enable ufw >/dev/null 2>&1 || true
+
+	# NetworkManager-wait-online queda enabled por preset al instalar networkmanager
+	# y bloquea la critical-chain del arranque grafico: tras poner la contrasena en
+	# SDDM, la sesion queda en negro hasta que vence su timeout. Lo deshabilitamos.
+	systemctl disable NetworkManager-wait-online.service >/dev/null 2>&1 || true
+}
+
+setup_security_baseline() {
+	log "Generando baselines de seguridad (rkhunter + clamav)"
+
+	# --- rkhunter ---
+	if command -v rkhunter >/dev/null 2>&1; then
+		log "rkhunter: actualizando definiciones"
+		# --update puede devolver codigos no-cero informativos; no abortar.
+		rkhunter --update --nocolors >/dev/null 2>&1 || warn "rkhunter --update devolvio avisos"
+
+		log "rkhunter: generando baseline (--propupd)"
+		# Snapshot del estado bueno conocido de los binarios ya instalados.
+		rkhunter --propupd --nocolors >/dev/null 2>&1 || warn "rkhunter --propupd fallo"
+
+		# Instala el timer de escaneo diario (units versionados).
+		local rk_svc="${OVERLAYS_DIR}/etc/systemd/system/rkhunter-scan.service"
+		local rk_timer="${OVERLAYS_DIR}/etc/systemd/system/rkhunter-scan.timer"
+		if [[ -f "$rk_svc" && -f "$rk_timer" ]]; then
+			cp -f --no-preserve=ownership "$rk_svc" /etc/systemd/system/rkhunter-scan.service
+			cp -f --no-preserve=ownership "$rk_timer" /etc/systemd/system/rkhunter-scan.timer
+			systemctl daemon-reload
+			systemctl enable --now rkhunter-scan.timer >/dev/null 2>&1 || warn "No se pudo habilitar rkhunter-scan.timer"
+		else
+			warn "No existen los units de rkhunter-scan en overlays; se omite el timer"
+		fi
+	else
+		warn "rkhunter no instalado; se omite baseline"
+	fi
+
+	# --- clamav ---
+	if command -v freshclam >/dev/null 2>&1; then
+		log "clamav: descargando firmas iniciales (freshclam)"
+		# El servicio freshclam toma un lock; detenerlo para la descarga manual.
+		systemctl stop clamav-freshclam.service >/dev/null 2>&1 || true
+		freshclam >/dev/null 2>&1 || warn "freshclam fallo descargando firmas"
+		# Habilita la actualizacion automatica de firmas.
+		systemctl enable --now clamav-freshclam.service >/dev/null 2>&1 || warn "No se pudo habilitar clamav-freshclam"
+	else
+		warn "clamav/freshclam no instalado; se omite"
+	fi
 }
 
 setup_portainer() {
-	log "Desplegando Portainer"
+	log "Desplegando Portainer como servicio systemd (solo HTTP 9000)"
 	command -v docker >/dev/null 2>&1 || die "Falta docker; agrega docker a paquetes oficiales"
 	systemctl is-active --quiet docker || systemctl start docker || die "No se pudo iniciar docker para desplegar Portainer"
 
+	# Volumen persistente para los datos de Portainer.
 	docker volume inspect portainer_data >/dev/null 2>&1 || docker volume create portainer_data >/dev/null
 
-	if docker ps -a --format '{{.Names}}' | grep -qx portainer; then
-		log "El contenedor portainer ya existe; se omite creacion"
+	# Instala el unit versionado (contenedor manejado por systemd: start/stop).
+	local unit_src="${OVERLAYS_DIR}/etc/systemd/system/portainer.service"
+	if [[ -f "$unit_src" ]]; then
+		cp -f --no-preserve=ownership "$unit_src" /etc/systemd/system/portainer.service
+		systemctl daemon-reload
+		# Si ya existe un contenedor suelto (p. ej. de un run manual), lo quitamos
+		# para que el servicio lo cree limpio.
+		if docker ps -a --format '{{.Names}}' | grep -qx portainer; then
+			docker rm -f portainer >/dev/null 2>&1 || true
+		fi
+		systemctl enable --now portainer.service >/dev/null 2>&1 || warn "No se pudo habilitar/iniciar portainer.service"
 	else
-		docker run -d \
-			-p 8000:8000 \
-			-p 9443:9443 \
-			--name portainer \
-			--restart=always \
-			-v /var/run/docker.sock:/var/run/docker.sock \
-			-v portainer_data:/data \
-			portainer/portainer-ce:latest || warn "Fallo desplegando Portainer"
+		warn "No existe ${unit_src}; se omite el servicio de Portainer"
 	fi
 }
 
@@ -468,6 +535,8 @@ main() {
 	apply_overlays
 	setup_quickshell
 	setup_nvim_tmux
+	setup_security_baseline
+	setup_dns
 	configure_swap_hibernate
 	enable_services
 	setup_portainer
@@ -478,7 +547,7 @@ main() {
 	log "Clave SSH publica de ${TARGET_USER} (agregala en https://github.com/settings/keys):"
 	cat "${TARGET_HOME}/.ssh/id_ed25519.pub"
 
-	log "Portainer disponible en https://localhost:9443 (crea el usuario admin en el primer acceso)"
+	log "Portainer disponible en http://localhost:9000 (crea el usuario admin en el primer acceso)"
 }
 
 main "$@"
