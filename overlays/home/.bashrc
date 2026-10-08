@@ -163,6 +163,13 @@ alias actz="paru -Syu && paru -c"
 alias templeos="qemu-system-x86_64 -enable-kvm -m 2048 -smp 2 -cdrom ~/templeOS/templeOS.iso -hda ~/templeOS/templeOS.img"
 alias ctosdisk="qemu-img create -f qcow2 -o preallocation=full ~/templeOS/templeOS.img 2G"
 alias windows="qemu-system-x86_64 -enable-kvm -m 4096 -smp 4 -cdrom ~/windows/windows11.iso -hda ~/windows/windows11.img"
+
+alias kirol="kiro-cli chat --list-sessions"
+alias kiro3="kiro-cli --v3"
+alias kiror="kiro-cli -r"
+alias kirori="kiro-cli chat --resume-id"
+alias kirod="kiro-cli chat --delete-session"
+
 export EDITOR=nvim
 export VISUAL=nvim
 export TERMINAL=kitty
