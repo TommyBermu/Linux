@@ -159,6 +159,29 @@ setup_cachyos_repo() {
 	rm -rf "$tmp_dir"
 }
 
+install_cachyos_kernels() {
+	log "Instalando kernels de CachyOS (normal + hardened con headers)"
+
+	local kernels=(
+		linux-cachyos
+		linux-cachyos-headers
+		linux-cachyos-hardened
+		linux-cachyos-hardened-headers
+	)
+
+	# Refresca la base de datos para ver los paquetes del repo recien agregado.
+	pacman -Sy --noconfirm || warn "No se pudo refrescar la base de datos de pacman"
+
+	local pkg
+	for pkg in "${kernels[@]}"; do
+		if pacman -Si "$pkg" >/dev/null 2>&1; then
+			pacman -S --noconfirm --needed "$pkg" || warn "Fallo instalando kernel ${pkg}"
+		else
+			warn "Kernel no encontrado en repos (¿CachyOS configurado?): ${pkg}"
+		fi
+	done
+}
+
 setup_blackarch_repo() {
     pacman -Syy --noconfirm
 	log "Configurando BlackArch (obligatorio) con strap.sh oficial"
@@ -182,6 +205,34 @@ setup_blackarch_repo() {
 	if [[ ! -f /etc/pacman.d/blackarch-mirrorlist ]]; then
 		die "BlackArch no quedo configurado: falta /etc/pacman.d/blackarch-mirrorlist"
 	fi
+}
+
+setup_nipe() {
+	log "Configurando nipe (instalacion desde BlackArch + Status.pm propio)"
+
+	# nipe no esta en repos oficiales ni AUR; viene del repo BlackArch.
+	if ! pacman -Qq nipe >/dev/null 2>&1; then
+		pacman -S --noconfirm --needed nipe || warn "No se pudo instalar nipe desde los repos (¿BlackArch configurado?)"
+	else
+		log "nipe ya esta instalado"
+	fi
+
+	local src="${OVERLAYS_DIR}/home/.config/nipe/Status.pm"
+	local dst_dir="/usr/share/nipe/lib/Nipe/Utils"
+	local dst="${dst_dir}/Status.pm"
+
+	if [[ ! -f "$src" ]]; then
+		warn "No existe el overlay de Status.pm en ${src}; se omite"
+		return 0
+	fi
+
+	if [[ ! -d "$dst_dir" ]]; then
+		warn "No existe ${dst_dir}; nipe no quedo instalado donde se espera, se omite Status.pm"
+		return 0
+	fi
+
+	cp -f --no-preserve=ownership "$src" "$dst"
+	log "Status.pm de nipe colocado en ${dst}"
 }
 
 read_pkg_list() {
@@ -240,16 +291,18 @@ install_aur_packages() {
 		return 0
 	fi
 
-	local aur_payload
-	aur_payload="$(printf '%s\n' "${aur_pkgs[@]}")"
-
-	if ! sudo -u "$TARGET_USER" AUR_PAYLOAD="$aur_payload" bash -lc '
-		set -euo pipefail
-		mapfile -t aur_pkgs <<< "$AUR_PAYLOAD"
-		paru -S --noconfirm --needed --sudoloop "${aur_pkgs[@]}"
-	'; then
-		warn "Fallo instalando uno o mas paquetes AUR en la ejecucion conjunta"
-	fi
+	# Instalacion en serie: un paquete por iteracion para que el fallo de uno
+	# no aborte la instalacion de los demas (paru en una sola llamada corta
+	# todo el batch ante el primer error).
+	local pkg
+	for pkg in "${aur_pkgs[@]}"; do
+		if ! sudo -u "$TARGET_USER" AUR_PKG="$pkg" bash -lc '
+			set -euo pipefail
+			paru -S --noconfirm --needed --sudoloop "$AUR_PKG"
+		'; then
+			warn "Fallo instalando paquete AUR: ${pkg}"
+		fi
+	done
 }
 
 apply_overlays() {
@@ -289,34 +342,22 @@ apply_overlays() {
 		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst/Pictures"
 	fi
 
-	#log "Aplicando overlays de quickshell"
-	#if [[ -d "${OVERLAYS_DIR}/etc/quickshell" ]]; then
-	#	cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/quickshell/bongocat.gif" /etc/xdg/quickshell/caelestia/assets/bongocat.gif
-    #    cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/quickshell/Content.qml" /etc/xdg/quickshell/caelestia/modules/session/Content.qml
-	#fi
-
 	log "Aplicando overlays de SDDM"
 	if [[ -f "${OVERLAYS_DIR}/etc/sddm/sddm.conf" ]]; then
 		cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/sddm/sddm.conf" /etc/sddm.conf
 	fi
-	if [[ -d "${OVERLAYS_DIR}/etc/sddm/pixie" ]]; then
-		mkdir -p /usr/share/sddm/themes/sugar-candy
-		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/sddm/pixie/." /usr/share/sddm/themes/pixie/
+}
+
+setup_quickshell() {
+	log "Aplicando overlays de quickshell (Caelestia) via clst.sh"
+
+	local clst="${REPO_DIR}/clst.sh"
+	if [[ ! -f "$clst" ]]; then
+		warn "No existe ${clst}; se omite quickshell"
+		return 0
 	fi
 
-	log "Aplicando overlays de GRUB"
-	#if [[ -f "${OVERLAYS_DIR}/etc/grub/grub" ]]; then
-	#	cp -f --no-preserve=ownership "${OVERLAYS_DIR}/etc/grub/grub" /etc/default/grub
-	#fi
-	#if [[ -d "${OVERLAYS_DIR}/etc/grub/grub.d" ]]; then
-	#	mkdir -p /etc/grub.d
-	#	cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/grub/grub.d/." /etc/grub.d/
-	#	chmod -R a+rx /etc/grub.d
-	#fi
-	if [[ -d "${OVERLAYS_DIR}/etc/grub/yorha" ]]; then
-		mkdir -p /boot/grub/themes/yorha
-		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/etc/grub/yorha/." /boot/grub/themes/yorha/
-	fi
+	bash "$clst" || warn "clst.sh fallo aplicando la config de quickshell"
 }
 
 get_swap_offset() {
@@ -419,10 +460,13 @@ main() {
 	setup_ssh_key
     setup_oh_my_bash
 	setup_cachyos_repo
+	install_cachyos_kernels
 	setup_blackarch_repo
+	setup_nipe
 	install_official_packages
 	install_aur_packages
 	apply_overlays
+	setup_quickshell
 	setup_nvim_tmux
 	configure_swap_hibernate
 	enable_services

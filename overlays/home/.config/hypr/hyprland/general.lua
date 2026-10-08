@@ -31,18 +31,7 @@ hl.config({
         follow_min_visible       = 0.0,
         explicit_column_widths   = "0.35, 0.5, 0.65, 1.0",
     },
-})
-
-hl.monitor({
-    output = "eDP-1",
-    mode = "1920x1200@60.0",
-    position = "0x1080",
-    scale = "1.2",
-})
-
-hl.monitor({
-    output = "HDMI-A-1",
-    mode = "1920x1080@100.0",
-    position = "0x0",
-    scale = "1.0",
+    xwayland = {
+        force_zero_scaling = true,
+    },
 })

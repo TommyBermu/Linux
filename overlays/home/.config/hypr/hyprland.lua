@@ -62,6 +62,7 @@ require("hyprland.execs")
 require("hyprland.rules")
 require("hyprland.gestures")
 require("hyprland.keybinds")
+require("monitors")
 
 -- User configs
 maybe_create(home .. "/.config/caelestia/hypr-user.lua")

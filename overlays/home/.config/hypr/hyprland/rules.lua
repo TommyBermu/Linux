@@ -12,7 +12,7 @@ hl.window_rule({ match = { float = true, xwayland = false }, center = true }) --
 hl.window_rule({
     match = {
         class =
-        "guifetch|yad|zenity|wev|org.gnome.FileRoller|file-roller|blueman-manager|com.github.GradienceTeam.Gradience|feh|imv|system-config-printer|org.quickshell",
+        "org.kde.gwenview|guifetch|yad|zenity|wev|org.gnome.FileRoller|file-roller|blueman-manager|com.github.GradienceTeam.Gradience|feh|imv|system-config-printer|org.quickshell|Matplotlib|nwg-displays|Grub-customizer|com.github.donadigo.appeditor|GParted|PacketTracer|org.gnome.SimpleScan",
     },
     tag   = "+float",
 })
@@ -109,13 +109,16 @@ hl.window_rule({
 hl.window_rule({ match = { class = "btop" }, workspace = "special:sysmon" })
 hl.window_rule({
     match     = {
-        class = "feishin|Spotify|Supersonic|Cider|com.github.th_ch.youtube_music|Plexamp|com-maxrave-simpmusic-MainKt",
+        class =
+        "feishin|Spotify|Supersonic|Cider|com.github.th_ch.youtube_music|Plexamp|com-maxrave-simpmusic-MainKt|youtube-music-desktop-app",
     },
     workspace = "special:music",
 })
-hl.window_rule({ match = { class = "discord|equibop|vesktop|whatsapp|com.rtosta.zapzap" }, workspace =
-"special:communication" })
-hl.window_rule({ match = { class = "Todoist" }, workspace = "special:todo" })
+hl.window_rule({
+    match = { class = "discord|equibop|vesktop|whatsapp|com.rtosta.zapzap" },
+    workspace =
+    "special:communication"
+})
 
 -------------------------
 ---- Workspace rules ----

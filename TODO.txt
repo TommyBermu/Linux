@@ -1,9 +1,3 @@
-atualizar lista de paquetes
-
-hacer que el Status.pm de nipe se ponga en /usr/share/nipe/lib/Nipe/Utils/Status.pm y no en .config
-
-instalar los kernels de cachyos una vez instalado el repo
-
-ver que se instalen los paquetes de aur, no lo hace pq los hace en paralelo, no en serie, entonces con un error de un solo paquete ya F todo
-
-actualizar la config de grub, pues..... ver que si funciona
+actualizar la config de grub, pues..... ver que si funciona (solo la parte de
+hibernacion: resume=UUID + resume_offset en configure_swap_hibernate; los temas
+de grub/sddm ya no se versionan, se instalan por otra via)

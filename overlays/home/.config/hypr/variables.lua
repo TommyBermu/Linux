@@ -36,8 +36,8 @@ return {
     shadowColour                    = "rgba(" .. scheme.inversePrimary .. "10)",
 
     -- Gaps
-    workspaceGaps                   = 5,
-    windowGapsIn                    = 5,
+    workspaceGaps                   = 0,
+    windowGapsIn                    = 2,
     windowGapsOut                   = 0,
     singleWindowGapsOut             = 0,
 

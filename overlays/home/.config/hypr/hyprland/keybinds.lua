@@ -73,10 +73,8 @@ hl.bind("CTRL + SUPER + SHIFT + down", hl.dsp.window.move({ workspace = "e+0" })
 hl.bind("SUPER + ALT + S", hl.dsp.window.move({ workspace = "special:special" }))
 
 -- Window groups
-hl.bind(vars.kbWindowGroupCycleNext, hl.dsp.window.cycle_next(), { repeating = true })
-hl.bind(vars.kbWindowGroupCyclePrev, hl.dsp.window.cycle_next({ next = false }), { repeating = true })
-hl.bind("CTRL + ALT + Tab", hl.dsp.group.next(), { repeating = true })
-hl.bind("CTRL + SHIFT + ALT + Tab", hl.dsp.group.prev(), { repeating = true })
+hl.bind(vars.kbWindowGroupCycleNext, hl.dsp.group.next(), { repeating = true })
+hl.bind(vars.kbWindowGroupCyclePrev, hl.dsp.group.prev(), { repeating = true })
 hl.bind(vars.kbToggleGroup, hl.dsp.group.toggle())
 hl.bind(vars.kbUngroup, hl.dsp.window.move({ out_of_group = true }))
 hl.bind("SUPER + SHIFT + Comma", hl.dsp.group.lock_active())
@@ -169,7 +167,7 @@ hl.bind(
 )
 
 -- Sleep
-hl.bind("SUPER + SHIFT + L", hl.dsp.exec_cmd(vars.sleepGestureCmd), { locked = true })
+hl.bind("SUPER + SHIFT + O", hl.dsp.exec_cmd(vars.sleepGestureCmd), { locked = true })
 
 -- Clipboard and emoji picker
 hl.bind("SUPER + V", hl.dsp.exec_cmd("pkill fuzzel || caelestia clipboard"))

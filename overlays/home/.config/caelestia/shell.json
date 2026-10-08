@@ -98,9 +98,12 @@
         "vimKeybinds": true
     },
     "services": {
+        "clockFormat": "TwentyFourHour",
         "defaultPlayer": "Brave",
+        "sensorUnits": "Celsius",
         "useFahrenheit": false,
-        "useTwelveHourClock": false
+        "useTwelveHourClock": false,
+        "weatherUnits": "Celsius"
     },
     "sidebar": {
         "dragThreshold": 30,

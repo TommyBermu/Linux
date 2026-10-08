@@ -52,7 +52,6 @@ man-db
 man-pages
 nano
 neovim
-nipe
 nix
 nodejs
 noto-fonts-emoji
