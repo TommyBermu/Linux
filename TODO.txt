@@ -1,3 +1,5 @@
-actualizar la config de grub, pues..... ver que si funciona (solo la parte de
-hibernacion: resume=UUID + resume_offset en configure_swap_hibernate; los temas
-de grub/sddm ya no se versionan, se instalan por otra via)
+cambiar la ruta de los overlays de hyprland a .config/hypr/
+
+cambiar el correo que se usa para generar la llave ssh (o no, no sé todavía)
+
+hacer que se ponga el nombre y correo en git global, junto con el cambio de la rama principal de master a main
