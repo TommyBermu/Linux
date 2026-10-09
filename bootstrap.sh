@@ -54,7 +54,10 @@ setup_ssh_key() {
 	chmod 700 "${ssh_dir}"
 
 	if [[ ! -f "${key_file}" ]]; then
-		sudo -u "${TARGET_USER}" ssh-keygen -t ed25519 -C "${TARGET_USER}@$(hostname)" -f "${key_file}" -N ""
+		local host
+		host="$(cat /etc/hostname 2>/dev/null)"
+		[[ -z "$host" ]] && host="$(hostname 2>/dev/null || uname -n)"
+		sudo -u "${TARGET_USER}" ssh-keygen -t ed25519 -C "${TARGET_USER}@${host}" -f "${key_file}" -N ""
 	else
 		log "Ya existe ${key_file}; se reutiliza"
 	fi
@@ -67,6 +70,11 @@ setup_ssh_key() {
 	chmod 600 "${key_file}"
 	chmod 644 "${key_file}.pub"
 	[[ -f "${ssh_dir}/known_hosts" ]] && chmod 644 "${ssh_dir}/known_hosts"
+}
+
+setup_git_global() {
+	log "Configurando git global: rama por defecto main"
+	sudo -u "${TARGET_USER}" git config --global init.defaultBranch main
 }
 
 setup_oh_my_bash() {
@@ -530,7 +538,7 @@ main() {
 	require_root
 	require_files
 	require_target_user
-	setup_ssh_key
+	setup_git_global
     setup_oh_my_bash
 	setup_cachyos_repo
 	install_cachyos_kernels
@@ -546,6 +554,8 @@ main() {
 	configure_swap_hibernate
 	enable_services
 	setup_portainer
+
+	setup_ssh_key
  
 	log "Bootstrap completo para ${TARGET_USER} (${TARGET_HOME})"
 	log "Reinicia para validar SDDM, GRUB theme y hibernacion"

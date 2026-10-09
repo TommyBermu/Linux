@@ -1,5 +1,5 @@
-cambiar la ruta de los overlays de hyprland a .config/hypr/
+hay un problema con el paquete del aur del driver de la huella, dice que hay colisión con otro driver ya instalado entonces se salta ese paquete
 
-cambiar el correo que se usa para generar la llave ssh (o no, no sé todavía)
-
-hacer que se ponga el nombre y correo en git global, junto con el cambio de la rama principal de master a main
+hacer lo de grub:
+sudo chmod -x /etc/grub.d/31_efi_bootnext
+sudo grub-mkconfig -o /boot/grub/grub.cfg
