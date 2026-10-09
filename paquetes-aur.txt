@@ -1,6 +1,5 @@
 appeditor-git
 caelestia-cli
-caelestia-firefox-theme
 caelestia-sddm-locklike-git
 caelestia-shell
 dynamips
