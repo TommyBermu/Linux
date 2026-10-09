@@ -8,5 +8,5 @@ Target = *
 [Action]
 Description = Actualizando baseline de rkhunter y escaneando tras la transaccion...
 When = PostTransaction
-Exec = /usr/bin/bash -c '/usr/bin/rkhunter --propupd --nocolors >/dev/null 2>&1; /usr/bin/rkhunter --check --sk --nocolors --report-warnings-only'
+Exec = /usr/bin/bash -c '/usr/bin/rkhunter --propupd --nocolors >/dev/null 2>&1; /usr/bin/rkhunter --check --sk --nocolors --report-warnings-only 2>/dev/null'
 AbortOnFail
