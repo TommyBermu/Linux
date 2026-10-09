@@ -287,11 +287,41 @@ ensure_paru() {
 	'
 }
 
+# caelestia-shell depende de 'quickshell-git'. En los repos binarios (CachyOS)
+# el unico paquete que provee 'quickshell-git' es noctalia-qs, que esta compilado
+# para Qt < 6.12 y rompe Caelestia con el Qt 6.12 del sistema. Si dejamos que paru
+# resuelva la dependencia sola, elige noctalia-qs del repo en vez de compilar
+# aur/quickshell-git.
+#
+# Solucion: instalar aur/quickshell-git explicitamente ANTES que caelestia-shell.
+# Una vez instalado, satisface el 'Depends On: quickshell-git' y paru ya no busca
+# otro proveedor en ningun -S ni -Syu posterior.
+install_quickshell_first() {
+	log "Instalando aur/quickshell-git antes que caelestia-shell (evita noctalia-qs)"
+
+	# Si por un bootstrap previo quedo noctalia-qs ocupando el provides, lo quitamos
+	# para que no bloquee la instalacion de quickshell-git.
+	if pacman -Qq noctalia-qs >/dev/null 2>&1; then
+		warn "noctalia-qs presente; se elimina (-Rdd) para liberar el provides quickshell-git"
+		pacman -Rdd --noconfirm noctalia-qs || warn "No se pudo eliminar noctalia-qs"
+	fi
+
+	# --aur fuerza a paru a tomar el paquete del AUR y no un proveedor del repo.
+	if ! sudo -u "$TARGET_USER" bash -lc '
+		set -euo pipefail
+		paru -S --noconfirm --needed --sudoloop --aur quickshell-git
+	'; then
+		warn "Fallo instalando aur/quickshell-git; caelestia-shell podria caer en noctalia-qs"
+	fi
+}
+
 install_aur_packages() {
 	[[ -f "$AUR_LIST" ]] || return 0
 
 	log "Instalando paquetes AUR"
 	ensure_paru
+
+	install_quickshell_first
 
 	mapfile -t aur_pkgs < <(read_pkg_list "$AUR_LIST")
 	if (( ${#aur_pkgs[@]} == 0 )); then

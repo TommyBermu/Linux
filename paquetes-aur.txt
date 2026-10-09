@@ -14,7 +14,7 @@ linux-wifi-hotspot
 masterpdfeditor
 packettracer
 qtengine
-quickshell
+quickshell-git
 rar
 ubridge
 visual-studio-code-bin

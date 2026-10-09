@@ -1,5 +1,0 @@
-hay un problema con el paquete del aur del driver de la huella, dice que hay colisión con otro driver ya instalado entonces se salta ese paquete
-
-hacer lo de grub:
-sudo chmod -x /etc/grub.d/31_efi_bootnext
-sudo grub-mkconfig -o /boot/grub/grub.cfg
