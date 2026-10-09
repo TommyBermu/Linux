@@ -375,6 +375,33 @@ get_swap_offset() {
 	fi
 }
 
+setup_grub() {
+	log "Configurando GRUB (theme yorha + desactivar 31_efi_bootnext)"
+
+	if [[ -d "${OVERLAYS_DIR}/boot/grub/themes" ]]; then
+		mkdir -p /boot/grub/themes
+		cp -rf --no-preserve=ownership "${OVERLAYS_DIR}/boot/grub/themes/." /boot/grub/themes/
+	fi
+
+	local theme_path="/boot/grub/themes/yorha/theme.txt"
+	if [[ -f "$theme_path" ]]; then
+		if [[ ! -f /etc/default/grub ]]; then
+			touch /etc/default/grub
+		fi
+		if grep -q '^GRUB_THEME=' /etc/default/grub; then
+			sed -i -E "s|^GRUB_THEME=.*$|GRUB_THEME=\"${theme_path}\"|" /etc/default/grub
+		else
+			echo "GRUB_THEME=\"${theme_path}\"" >> /etc/default/grub
+		fi
+	else
+		warn "No se encontro ${theme_path}; se omite GRUB_THEME"
+	fi
+
+	if [[ -f /etc/grub.d/31_efi_bootnext ]]; then
+		chmod -x /etc/grub.d/31_efi_bootnext
+	fi
+}
+
 configure_swap_hibernate() {
 	log "Configurando swap e hibernacion"
 
@@ -551,6 +578,7 @@ main() {
 	setup_nvim_tmux
 	setup_security_baseline
 	setup_dns
+	setup_grub
 	configure_swap_hibernate
 	enable_services
 	setup_portainer
@@ -560,10 +588,23 @@ main() {
 	log "Bootstrap completo para ${TARGET_USER} (${TARGET_HOME})"
 	log "Reinicia para validar SDDM, GRUB theme y hibernacion"
 
-	log "Clave SSH publica de ${TARGET_USER} (agregala en https://github.com/settings/keys):"
-	cat "${TARGET_HOME}/.ssh/id_ed25519.pub"
-
 	log "Portainer disponible en http://localhost:9000 (crea el usuario admin en el primer acceso)"
+
+	printf '\n'
+	printf '========================================================================\n'
+	printf '  ACCIONES MANUALES PENDIENTES\n'
+	printf '========================================================================\n'
+	printf '\n'
+	printf '  [1] Agrega esta clave SSH publica en https://github.com/settings/keys:\n'
+	printf '\n'
+	cat "${TARGET_HOME}/.ssh/id_ed25519.pub"
+	printf '\n'
+	printf '  [2] Instala el driver de huella manualmente (colisiona con libfprint\n'
+	printf '      y hay que confirmar el reemplazo a mano):\n'
+	printf '\n'
+	printf '          paru -S libfprint-2-tod1-elan\n'
+	printf '\n'
+	printf '========================================================================\n'
 }
 
 main "$@"
