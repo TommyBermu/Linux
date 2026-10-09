@@ -317,19 +317,15 @@ apply_overlays() {
 
 	log "Aplicando overlays de HOME"
 	if [[ -d "${OVERLAYS_DIR}/home" ]]; then
-		# Copia HOME completo excepto .config/hypr para evitar conflicto dir -> symlink.
+		# Copia HOME completo (incluye .config/hypr, que ahora vive en su ruta
+		# estandar ~/.config/hypr en lugar de dentro de Caelestia).
 		(
 			cd "${OVERLAYS_DIR}/home"
-			tar --exclude='.config/hypr' -cf - .
+			tar -cf - .
 		) | (
 			cd "$home_dst"
 			tar -xf -
 		)
-
-		# Hypr vive en Caelestia; copiamos solo el contenido al destino de .config/hypr.
-		if [[ -e "${OVERLAYS_DIR}/home/.config/hypr" ]]; then
-			cp -aLf "${OVERLAYS_DIR}/home/.config/hypr/." "$home_dst/.local/share/caelestia/hypr/" || warn "No se pudo copiar overlay de hypr"
-		fi
 
 		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst"
 	fi
@@ -478,6 +474,16 @@ setup_security_baseline() {
 			systemctl enable --now rkhunter-scan.timer >/dev/null 2>&1 || warn "No se pudo habilitar rkhunter-scan.timer"
 		else
 			warn "No existen los units de rkhunter-scan en overlays; se omite el timer"
+		fi
+
+		# Instala el hook de pacman para escanear tras cada instalacion/upgrade/remove.
+		local rk_hook="${OVERLAYS_DIR}/etc/pacman.d/hooks/rkhunter.hook"
+		if [[ -f "$rk_hook" ]]; then
+			mkdir -p /etc/pacman.d/hooks
+			cp -f --no-preserve=ownership "$rk_hook" /etc/pacman.d/hooks/rkhunter.hook
+			log "Hook de pacman para rkhunter instalado en /etc/pacman.d/hooks/rkhunter.hook"
+		else
+			warn "No existe el hook de rkhunter en overlays; se omite"
 		fi
 	else
 		warn "rkhunter no instalado; se omite baseline"
