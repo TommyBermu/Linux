@@ -6,6 +6,7 @@ ark
 base
 base-devel
 bat
+blackarch-keyring
 blackarch-mirrorlist
 bleachbit
 blueman
@@ -23,7 +24,6 @@ cliphist
 cpu-x
 cups
 cups-pk-helper
-curl
 direnv
 dmidecode
 dnsmasq
@@ -32,6 +32,7 @@ docker-compose
 dolphin
 dos2unix
 downgrade
+dunst
 efibootmgr
 evil-winrm
 exfatprogs
@@ -43,13 +44,13 @@ firejail
 fish
 fprintd
 frameworkintegration
+ghostscript
 git
 gnome-keyring
 gparted
 grim
 grub
 gst-plugin-pipewire
-guvcview
 gwenview
 haruna
 haveged
@@ -60,7 +61,6 @@ hyprland
 hyprlock
 hyprpicker
 hyprpolkitagent
-imv
 inetutils
 iwd
 jdk-openjdk
@@ -110,13 +110,11 @@ nwg-look
 obs-studio
 openvpn
 os-prober
-pacman-contrib
 papirus-icon-theme
 paru
 pavucontrol
 pipewire
 pipewire-alsa
-pipewire-audio
 pipewire-jack
 pipewire-pulse
 polkit-gnome
@@ -127,8 +125,6 @@ pybind11
 python-pip
 python-pyqt5
 qemu-desktop
-qemu-system-x86
-qgis
 qt5-tools
 qt5-wayland
 qt6ct
@@ -136,7 +132,6 @@ qt6-wayland
 ranger
 rebuild-detector
 reflector
-ripgrep
 rkhunter
 sane
 sddm
@@ -159,6 +154,7 @@ tree
 tree-sitter-cli
 ttf-dejavu
 ttf-jetbrains-mono-nerd
+ttf-liberation
 ufw
 unzip
 usbutils
@@ -175,10 +171,7 @@ wireless_tools
 wireplumber
 wireshark-cli
 wireshark-qt
-wl-clipboard
 wlr-randr
-wofi
-xdg-desktop-portal-gtk
 xdg-desktop-portal-hyprland
 xdg-user-dirs
 xdg-utils
@@ -187,5 +180,6 @@ xf86-video-ati
 xf86-video-nouveau
 xorg-xhost
 xorg-xinit
+zenity
 zip
 zram-generator
