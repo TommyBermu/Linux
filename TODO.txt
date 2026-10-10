@@ -1,0 +1,7 @@
+que el usuario se ponga en el grupo de docker
+
+que se cambien los origin a git@ de nvim tmux y linux en vez de https, despues de añadir la clave a github (no se hace en el bootstrap)
+
+que se actualice la config de sddm en .config/caelestia/templates/ y que se synquee con /usr/share/sddm/themes/caelestia/scripts/sync.sh 
+
+instalar y configurar onedrive de abraunegg, en el post-bootstrap poner para que se eliminen las carpetas bloat y generar los softlinks a Documents/ y Pictures/ desde Onedrive/
