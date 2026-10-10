@@ -125,7 +125,16 @@ hl.bind(vars.kbCloseWindow, hl.dsp.window.close())
 
 -- Special workspace toggles
 hl.bind(vars.kbSpecialWs, hl.dsp.exec_cmd("caelestia toggle specialws"))
-hl.bind(vars.kbSystemMonitorWs, hl.dsp.exec_cmd("caelestia toggle sysmon"))
+hl.bind(
+    vars.kbSystemMonitorWs,
+    hl.dsp.exec_cmd(
+        "if hyprctl clients -j | grep -q '\"class\": \"btop\"'; then " ..
+        "caelestia toggle sysmon; " ..
+        "else " ..
+        "kitty --class btop -e btop; " ..
+        "fi"
+    )
+)
 hl.bind(vars.kbMusicWs, hl.dsp.exec_cmd("caelestia toggle music"))
 hl.bind(vars.kbCommunicationWs, hl.dsp.exec_cmd("caelestia toggle communication"))
 
