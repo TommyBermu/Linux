@@ -14,5 +14,4 @@ qtengine
 quickshell-git
 rar
 visual-studio-code-bin
-ytmdesktop
 zapzap

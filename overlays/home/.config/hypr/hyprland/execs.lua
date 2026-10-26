@@ -25,6 +25,9 @@ hl.on("hyprland.start", function()
     -- Forward bluetooth media commands to MPRIS
     hl.exec_cmd("mpris-proxy")
 
+    -- Start apparmor notifications
+    -- hl.exec_cmd("aa-notify -p -s 1 -w 60 -f /var/log/audit/audit.log")
+
     -- Start shell
     hl.exec_cmd("caelestia shell -d")
 end)

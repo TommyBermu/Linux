@@ -1,4 +1,5 @@
 adw-gtk-theme
+aircrack-ng
 amd-ucode
 archiso
 archlinux-xdg-menu
@@ -6,6 +7,7 @@ ark
 base
 base-devel
 bat
+bind
 blackarch-keyring
 blackarch-mirrorlist
 bleachbit
@@ -21,6 +23,7 @@ cachyos-v3-mirrorlist
 cachyos-v4-mirrorlist
 clamav
 cliphist
+cmake
 cpu-x
 cups
 cups-pk-helper
@@ -53,6 +56,7 @@ grub
 gst-plugin-pipewire
 gwenview
 haruna
+hashcat
 haveged
 hexedit
 hplip
@@ -79,12 +83,8 @@ libva-intel-driver
 libvirt
 linux
 linux-cachyos
-linux-cachyos-hardened
-linux-cachyos-hardened-headers
 linux-cachyos-headers
 linux-firmware
-linux-hardened
-linux-hardened-headers
 linux-headers
 macchanger
 man-db
@@ -117,11 +117,13 @@ pipewire
 pipewire-alsa
 pipewire-jack
 pipewire-pulse
+pnpm
 polkit-gnome
 polkit-kde-agent
 power-profiles-daemon
 proton-vpn-gtk-app
 pybind11
+python-notify2
 python-pip
 python-pyqt5
 qemu-desktop
@@ -133,9 +135,13 @@ ranger
 rebuild-detector
 reflector
 rkhunter
+rocm-opencl-runtime
+rocm-smi-lib
+rustup
 sane
 sddm
 seahorse
+seclists
 sherlock
 simple-scan
 skipfish
@@ -144,6 +150,7 @@ smartmontools
 sof-firmware
 sudo
 system-config-printer
+tcpdump
 termdown
 timeshift
 tk
@@ -163,6 +170,7 @@ uwsm
 v4l2loopback-dkms
 vim
 virt-manager
+virtualbox
 vkd3d
 vulkan-nouveau
 vulkan-radeon
