@@ -1,6 +1,8 @@
+7zip
 adw-gtk-theme
 aircrack-ng
 amd-ucode
+apache
 archiso
 archlinux-xdg-menu
 ark
@@ -31,6 +33,7 @@ direnv
 dmidecode
 dnsmasq
 docker
+docker-buildx
 docker-compose
 dolphin
 dos2unix
@@ -49,6 +52,7 @@ fprintd
 frameworkintegration
 ghostscript
 git
+github-cli
 gnome-keyring
 gparted
 grim
@@ -58,7 +62,9 @@ gwenview
 haruna
 hashcat
 haveged
+hcxtools
 hexedit
+hip-runtime-amd
 hplip
 htop
 hyprland
@@ -78,7 +84,6 @@ lazygit
 less
 libinput-tools
 libpulse
-libreoffice-still
 libva-intel-driver
 libvirt
 linux
@@ -118,6 +123,7 @@ pipewire-alsa
 pipewire-jack
 pipewire-pulse
 pnpm
+pocl
 polkit-gnome
 polkit-kde-agent
 power-profiles-daemon
