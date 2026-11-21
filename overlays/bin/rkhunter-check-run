@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Chequeo frecuente de rkhunter con actualizacion condicional del baseline.
+# Chequeo diario de rkhunter con actualizacion condicional del baseline.
 #
 # Flujo:
 #   1. rkhunter --check (solo propiedades + rootkits, sin paginar ni colorear)

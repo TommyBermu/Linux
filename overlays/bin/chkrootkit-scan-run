@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Escaneo diario de chkrootkit.
+# Escaneo de chkrootkit (lo dispara chkrootkit-scan.timer cada 6 horas).
 #
 # chkrootkit no usa un baseline propio (a diferencia de rkhunter): compara
 # contra firmas/heuristicas de rootkits conocidos, por eso NO tiene sentido un

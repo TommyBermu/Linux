@@ -548,10 +548,7 @@ setup_security_baseline() {
 		# Snapshot del estado bueno conocido de los binarios ya instalados.
 		rkhunter --propupd --nocolors >/dev/null 2>&1 || warn "rkhunter --propupd fallo"
 
-		# Instala units: escaneo diario (solo lectura) + chequeo cada 6h (que
-		# actualiza el baseline solo si el escaneo sale limpio). Esto reemplaza
-		# al viejo hook de pacman, que corria --propupd a ciegas.
-		# Instala el unit de chequeo cada 6h: escanea y, solo si sale limpio,
+		# Instala el unit de chequeo diario: escanea y, solo si sale limpio,
 		# actualiza el baseline (--propupd). Esto reemplaza al viejo hook de
 		# pacman, que corria --propupd a ciegas sin escanear antes.
 		local rk_csvc="${OVERLAYS_DIR}/etc/systemd/system/rkhunter-check.service"
@@ -587,7 +584,7 @@ setup_security_baseline() {
 
 	# --- chkrootkit ---
 	# No tiene baseline propio (compara contra firmas de rootkits), por eso solo
-	# un escaneo diario, sin hook de pacman.
+	# escanea y reporta (cada 6h via timer), sin hook de pacman.
 	if command -v chkrootkit >/dev/null 2>&1; then
 		local ck_svc="${OVERLAYS_DIR}/etc/systemd/system/chkrootkit-scan.service"
 		local ck_timer="${OVERLAYS_DIR}/etc/systemd/system/chkrootkit-scan.timer"

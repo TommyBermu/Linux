@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# Manda una notificacion de escritorio a la sesion grafica del usuario.
+# Manda una notificacion de escritorio a la sesion grafica activa.
 # Pensado para ejecutarse desde units systemd que corren como root: el
 # notify-send tiene que salir hacia el bus de sesion del usuario (Caelestia
 # escucha ahi), no hacia el root que no tiene daemon de notificaciones.
+#
+# Descubre al usuario grafico dinamicamente (no asume un nombre fijo), igual que
+# el bootstrap evita hardcodear el usuario. Si no hay sesion grafica, sale sin
+# hacer nada.
 #
 # Uso: security-notify <urgencia> <titulo> <cuerpo>
 #   urgencia: low | normal | critical
@@ -12,13 +16,24 @@ URGENCY="${1:-normal}"
 TITLE="${2:-Seguridad}"
 BODY="${3:-}"
 
-# Usuario de escritorio objetivo (UID del usuario grafico principal).
-TARGET_UID=1000
-TARGET_USER="$(id -nu "${TARGET_UID}" 2>/dev/null || echo tommy)"
-RUNTIME_DIR="/run/user/${TARGET_UID}"
+# Busca el UID de la primera sesion grafica/activa de un usuario normal (>=1000).
+# loginctl lista las sesiones; nos quedamos con el UID de una con asiento (seat)
+# o marcada como grafica.
+TARGET_UID=""
+while read -r _sid uid _user _seat _rest; do
+	[[ "$uid" =~ ^[0-9]+$ ]] || continue
+	[[ "$uid" -ge 1000 ]] || continue
+	if [[ -S "/run/user/${uid}/bus" ]]; then
+		TARGET_UID="$uid"
+		break
+	fi
+done < <(loginctl list-sessions --no-legend 2>/dev/null)
 
-# Si no hay bus de sesion (sin sesion grafica activa), no hay a quien notificar.
-[[ -S "${RUNTIME_DIR}/bus" ]] || exit 0
+# Sin sesion de usuario con bus activo, no hay a quien notificar.
+[[ -n "$TARGET_UID" ]] || exit 0
+
+RUNTIME_DIR="/run/user/${TARGET_UID}"
+TARGET_USER="$(id -nu "${TARGET_UID}" 2>/dev/null)" || exit 0
 
 sudo -u "${TARGET_USER}" \
 	DBUS_SESSION_BUS_ADDRESS="unix:path=${RUNTIME_DIR}/bus" \

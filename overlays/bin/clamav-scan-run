@@ -1,21 +1,30 @@
 #!/usr/bin/env bash
-# Escaneo diario de ClamAV sobre las zonas de riesgo (donde aterriza lo que se
-# descarga o sincroniza). No usa el daemon clamd (que residente consume ~1-2 GB
-# de RAM): corre clamscan puntual, mas lento pero sin coste permanente.
+# Escaneo de ClamAV sobre las zonas de riesgo (donde aterriza lo que se descarga
+# o sincroniza). No usa el daemon clamd (que residente consume ~1-2 GB de RAM):
+# corre clamscan puntual, mas lento pero sin coste permanente.
 #
-# Rutas: Downloads, OneDrive (incluye Documents y Pictures via symlink) y los
-# temporales. No escanea todo el home ni / para no tardar horas.
+# Rutas: Downloads y OneDrive del usuario grafico (OneDrive incluye Documents y
+# Pictures via symlink) mas los temporales del sistema. No escanea todo el home
+# ni / para no tardar horas. El usuario no se hardcodea: se descubre su home.
 set -uo pipefail
 
 LOG=/var/log/clamav/clamav-scan.log
 NOTIFY=/usr/local/bin/security-notify
 
-TARGETS=(
-	/home/tommy/Downloads
-	/home/tommy/OneDrive
-	/tmp
-	/var/tmp
-)
+# Descubre el home del usuario grafico (primera sesion de un usuario >=1000).
+USER_HOME=""
+while read -r _sid uid _rest; do
+	[[ "$uid" =~ ^[0-9]+$ ]] || continue
+	[[ "$uid" -ge 1000 ]] || continue
+	USER_HOME="$(getent passwd "$uid" | cut -d: -f6)"
+	[[ -n "$USER_HOME" ]] && break
+done < <(loginctl list-sessions --no-legend 2>/dev/null)
+
+# Temporales del sistema siempre; rutas del home solo si se pudo resolver.
+TARGETS=(/tmp /var/tmp)
+if [[ -n "$USER_HOME" ]]; then
+	TARGETS+=("${USER_HOME}/Downloads" "${USER_HOME}/OneDrive")
+fi
 
 # Solo rutas que existan, para que clamscan no aborte por una ausente.
 scan=()
