@@ -2,7 +2,6 @@
 adw-gtk-theme
 aircrack-ng
 amd-ucode
-apache
 archiso
 archlinux-xdg-menu
 ark
@@ -23,6 +22,7 @@ cachyos-mirrorlist
 cachyos-rate-mirrors
 cachyos-v3-mirrorlist
 cachyos-v4-mirrorlist
+chkrootkit
 clamav
 cliphist
 cmake
@@ -38,7 +38,6 @@ docker-compose
 dolphin
 dos2unix
 downgrade
-dunst
 efibootmgr
 evil-winrm
 exfatprogs
