@@ -1,0 +1,62 @@
+# rkhunter.conf.local
+# Ajustes propios. Este archivo se lee DESPUES de /etc/rkhunter.conf y
+# sobreescribe lo que haga falta, de modo que sobrevive a las actualizaciones
+# del paquete rkhunter (que reescriben /etc/rkhunter.conf).
+#
+# Validar sintaxis tras cualquier cambio:  rkhunter -C
+
+# --- Integracion con pacman -------------------------------------------------
+# NOTA: la opcion PKGMGR de rkhunter 1.4.6 solo admite RPM/DPKG/BSD/SOLARIS,
+# no pacman, asi que NO se usa aqui (ponerla hace fallar 'rkhunter -C'). En
+# Arch la verificacion de binarios se apoya en el baseline propio de rkhunter
+# (--propupd), que el timer rkhunter-check mantiene al dia solo cuando el
+# escaneo sale limpio.
+
+# --- SSH --------------------------------------------------------------------
+# Este equipo NO corre servidor SSH (sshd deshabilitado); solo se usa ssh como
+# cliente hacia otras maquinas, lo cual no abre ningun servicio local. Marcamos
+# la postura endurecida para que rkhunter valide que nadie puede entrar como
+# root por SSH y no lance warnings espurios sobre sshd_config.
+ALLOW_SSH_ROOT_USER=no
+ALLOW_SSH_PROT_V1=0
+
+# Aun con lo anterior, rkhunter avisa si 'PermitRootLogin' y 'Protocol' no estan
+# escritos explicitamente en sshd_config. Como no hay servidor SSH corriendo,
+# ese chequeo no aporta nada y solo genera ruido: lo desactivamos con su nombre
+# de test real, 'system_configs_ssh'. (Si algun dia habilitas sshd, quita este
+# test de la lista y configura PermitRootLogin en sshd_config.)
+DISABLE_TESTS=suspscan hidden_ports hidden_procs deleted_files packet_cap_apps apps system_configs_ssh
+
+# --- Actualizacion de definiciones -----------------------------------------
+# Permite que 'rkhunter --update' refresque las bases de datos de firmas.
+UPDATE_MIRRORS=1
+MIRRORS_MODE=0
+WEB_CMD=""
+
+# --- Tests ------------------------------------------------------------------
+# El DISABLE_TESTS efectivo se define arriba (en la seccion SSH). Sobre los que
+# ya trae el conf base (suspscan, hidden_ports, hidden_procs, deleted_files,
+# packet_cap_apps, apps), que dan ruido en un escritorio Arch moderno, se añade
+# system_configs_ssh. rkhunter acumula los DISABLE_TESTS de ambos archivos.
+
+# --- Whitelists para evitar falsos positivos legitimos ----------------------
+# Binarios que en Arch son scripts o enlaces y que rkhunter marcaria como
+# "comando reemplazado por script".
+SCRIPTWHITELIST=/usr/bin/egrep
+SCRIPTWHITELIST=/usr/bin/fgrep
+SCRIPTWHITELIST=/usr/bin/ldd
+
+# Directorios ocultos legitimos (se añaden solo si aparecen como falso
+# positivo; hoy el sistema no tiene ninguno fuera de los del conf base).
+# Ejemplo:  ALLOWHIDDENDIR=/etc/.java
+
+# Archivos ocultos legitimos que rkhunter marca como sospechosos:
+#   /etc/.updated                -> marcador que deja pacman/systemd tras updates
+#   man pages .k5identity/.k5login -> paginas de manual de krb5
+ALLOWHIDDENFILE=/etc/.updated
+ALLOWHIDDENFILE=/usr/share/man/man5/.k5identity.5.gz
+ALLOWHIDDENFILE=/usr/share/man/man5/.k5login.5.gz
+
+# Archivos "sospechosos" en /dev que en realidad son legitimos:
+#   rocm_smi_*  -> memoria compartida de la GPU AMD (ROCm) en /dev/shm
+ALLOWDEVFILE=/dev/shm/rocm_smi_*

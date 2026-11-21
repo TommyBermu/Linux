@@ -1,0 +1,15 @@
+[Unit]
+Description=Lynis: auditoria de hardening y vulnerabilidades
+Documentation=https://cisofy.com/docs/
+
+[Service]
+Nice=19
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+Type=oneshot
+# --cronjob: sin color ni pausas, apto para ejecucion desatendida. El informe
+# queda en /var/log/lynis.log y /var/log/lynis-report.dat.
+ExecStart=/usr/bin/lynis audit system --cronjob
+
+[Install]
+WantedBy=multi-user.target

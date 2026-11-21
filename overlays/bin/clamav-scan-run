@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Escaneo diario de ClamAV sobre las zonas de riesgo (donde aterriza lo que se
+# descarga o sincroniza). No usa el daemon clamd (que residente consume ~1-2 GB
+# de RAM): corre clamscan puntual, mas lento pero sin coste permanente.
+#
+# Rutas: Downloads, OneDrive (incluye Documents y Pictures via symlink) y los
+# temporales. No escanea todo el home ni / para no tardar horas.
+set -uo pipefail
+
+LOG=/var/log/clamav/clamav-scan.log
+NOTIFY=/usr/local/bin/security-notify
+
+TARGETS=(
+	/home/tommy/Downloads
+	/home/tommy/OneDrive
+	/tmp
+	/var/tmp
+)
+
+# Solo rutas que existan, para que clamscan no aborte por una ausente.
+scan=()
+for t in "${TARGETS[@]}"; do
+	[[ -e "$t" ]] && scan+=("$t")
+done
+[[ ${#scan[@]} -eq 0 ]] && exit 0
+
+mkdir -p "$(dirname "$LOG")"
+
+# -r recursivo, -i solo reporta infectados, --stdout junta todo en el log.
+# clamscan devuelve: 0 = limpio, 1 = virus encontrado, 2 = error.
+clamscan -r -i --stdout "${scan[@]}" >"$LOG" 2>&1
+rc=$?
+
+if [[ "$rc" -eq 1 ]]; then
+	found="$(grep -c 'FOUND$' "$LOG" 2>/dev/null || echo '?')"
+	[[ -x "$NOTIFY" ]] && "$NOTIFY" critical "ClamAV: malware detectado" \
+		"Se encontraron ${found} archivo(s) infectado(s). Revisa ${LOG}"
+elif [[ "$rc" -ne 0 ]]; then
+	[[ -x "$NOTIFY" ]] && "$NOTIFY" normal "ClamAV: error de escaneo" \
+		"El escaneo fallo (codigo ${rc}). Revisa ${LOG}"
+fi
+
+exit 0

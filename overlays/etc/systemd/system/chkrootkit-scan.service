@@ -1,0 +1,6 @@
+[Unit]
+Description=chkrootkit: escaneo de rootkits
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/chkrootkit-scan-run

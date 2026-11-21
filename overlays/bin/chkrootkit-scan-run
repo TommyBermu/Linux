@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Escaneo diario de chkrootkit.
+#
+# chkrootkit no usa un baseline propio (a diferencia de rkhunter): compara
+# contra firmas/heuristicas de rootkits conocidos, por eso NO tiene sentido un
+# hook de pacman ni un paso de "actualizar baseline". Solo escanea y reporta.
+#
+# Guardamos la salida en un log propio y comparamos las lineas "INFECTED" para
+# notificar solo cuando hay algo que mirar.
+set -uo pipefail
+
+LOG=/var/log/chkrootkit.log
+NOTIFY=/usr/local/bin/security-notify
+
+ts="$(date '+%Y-%m-%d %H:%M:%S')"
+{
+	echo "===== chkrootkit ${ts} ====="
+	chkrootkit 2>&1
+} >"${LOG}.tmp"
+
+# Movemos a log definitivo (conservamos solo la ultima corrida; el journal
+# guarda el historico via el service).
+mv -f "${LOG}.tmp" "$LOG"
+
+# chkrootkit marca hallazgos con la palabra "INFECTED". "not infected" y
+# "nothing found/detected" son resultados limpios; los excluimos.
+infected="$(grep -E 'INFECTED' "$LOG" 2>/dev/null | grep -vi 'not infected' || true)"
+
+if [[ -n "$infected" ]]; then
+	count="$(printf '%s\n' "$infected" | grep -c . || echo '?')"
+	[[ -x "$NOTIFY" ]] && "$NOTIFY" critical "chkrootkit: posible rootkit" \
+		"Se encontraron ${count} hallazgo(s) INFECTED. Revisa ${LOG}"
+fi
+
+exit 0

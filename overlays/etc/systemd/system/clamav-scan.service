@@ -1,0 +1,9 @@
+[Unit]
+Description=ClamAV: escaneo de zonas de riesgo (descargas, OneDrive, temporales)
+
+[Service]
+Type=oneshot
+Nice=19
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+ExecStart=/usr/local/bin/clamav-scan-run

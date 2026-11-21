@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+# Excepcion: la config de rkhunter SI debe versionarse (no es un archivo
+# local de editor, es parte del overlay del sistema).
+!overlays/etc/rkhunter.conf.local
 
 # Environment files (keep the example committed)
 .env

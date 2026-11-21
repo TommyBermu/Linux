@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Chequeo frecuente de rkhunter con actualizacion condicional del baseline.
+#
+# Flujo:
+#   1. rkhunter --check (solo propiedades + rootkits, sin paginar ni colorear)
+#   2. Si NO hubo warnings  -> rkhunter --propupd  (baseline al dia, limpio)
+#   3. Si hubo warnings      -> NO se toca el baseline y se notifica al escritorio
+#
+# Esto sustituye al viejo hook de pacman, que corria --propupd a ciegas y por
+# tanto aceptaba como legitimo cualquier binario que entrara en la transaccion.
+set -uo pipefail
+
+LOG=/var/log/rkhunter.log
+NOTIFY=/usr/local/bin/security-notify
+
+# --check devuelve:
+#   0 = sin warnings
+#   1 = se encontraron warnings
+#   2 = error de ejecucion
+rkhunter --check --sk --report-warnings-only --nocolors >/dev/null 2>&1
+rc=$?
+
+case "$rc" in
+	0)
+		# Limpio: refrescamos el baseline con el estado bueno conocido.
+		rkhunter --propupd --nocolors >/dev/null 2>&1 || true
+		;;
+	1)
+		# Hay warnings reales: dejamos el baseline intacto y avisamos.
+		warns="$(grep -c '\[ Warning \]' "$LOG" 2>/dev/null || echo '?')"
+		[[ -x "$NOTIFY" ]] && "$NOTIFY" critical "rkhunter: posibles amenazas" \
+			"Se encontraron ${warns} warning(s). Revisa: sudo rkhunter --check --rwo"
+		;;
+	*)
+		[[ -x "$NOTIFY" ]] && "$NOTIFY" normal "rkhunter: error de escaneo" \
+			"El chequeo fallo (codigo ${rc}). Revisa ${LOG}"
+		;;
+esac
+
+exit 0

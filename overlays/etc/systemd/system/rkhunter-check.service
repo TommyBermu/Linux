@@ -1,0 +1,14 @@
+[Unit]
+Description=rkhunter: chequeo diario y actualizacion de baseline si esta limpio
+
+[Service]
+Type=oneshot
+# Reemplaza al antiguo hook de pacman (que corria --propupd a ciegas tras cada
+# transaccion, aceptando cualquier cambio como legitimo). Aqui el orden es el
+# correcto de seguridad: primero se ESCANEA; el baseline solo se actualiza
+# (--propupd) si el chequeo salio sin warnings. Si hay warnings, se avisa a la
+# sesion grafica y NO se toca el baseline, para no "bendecir" un cambio sucio.
+ExecStart=/usr/local/bin/rkhunter-check-run
+
+[Install]
+WantedBy=multi-user.target

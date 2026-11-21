@@ -1,6 +1,0 @@
-[Unit]
-Description=rkhunter scan
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/bash -c '/usr/bin/rkhunter --check --sk --report-warnings-only 2>/dev/null'

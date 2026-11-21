@@ -1,0 +1,10 @@
+[Unit]
+Description=Escaneo diario de ClamAV
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=15min
+
+[Install]
+WantedBy=timers.target

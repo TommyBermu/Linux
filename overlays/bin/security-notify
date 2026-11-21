@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Manda una notificacion de escritorio a la sesion grafica del usuario.
+# Pensado para ejecutarse desde units systemd que corren como root: el
+# notify-send tiene que salir hacia el bus de sesion del usuario (Caelestia
+# escucha ahi), no hacia el root que no tiene daemon de notificaciones.
+#
+# Uso: security-notify <urgencia> <titulo> <cuerpo>
+#   urgencia: low | normal | critical
+set -euo pipefail
+
+URGENCY="${1:-normal}"
+TITLE="${2:-Seguridad}"
+BODY="${3:-}"
+
+# Usuario de escritorio objetivo (UID del usuario grafico principal).
+TARGET_UID=1000
+TARGET_USER="$(id -nu "${TARGET_UID}" 2>/dev/null || echo tommy)"
+RUNTIME_DIR="/run/user/${TARGET_UID}"
+
+# Si no hay bus de sesion (sin sesion grafica activa), no hay a quien notificar.
+[[ -S "${RUNTIME_DIR}/bus" ]] || exit 0
+
+sudo -u "${TARGET_USER}" \
+	DBUS_SESSION_BUS_ADDRESS="unix:path=${RUNTIME_DIR}/bus" \
+	XDG_RUNTIME_DIR="${RUNTIME_DIR}" \
+	notify-send -a "Seguridad" -u "${URGENCY}" -- "${TITLE}" "${BODY}" || true

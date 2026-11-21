@@ -1,0 +1,61 @@
+================================================================================
+ PROMPT PARA ANALIZAR EL INFORME DE LYNIS CON KIRO
+================================================================================
+
+Lynis corre solo cada semana (timer lynis-audit) y deja el informe en:
+
+    /var/log/lynis-report.dat      (datos crudos: warnings y suggestions)
+    /var/log/lynis.log             (log detallado de cada test)
+
+Para que Kiro lo analice, abre una sesion y pasale el prompt de abajo. Como el
+informe es legible solo por root, conviene lanzar Kiro con sudo o darle permiso
+de lectura:
+
+    sudo kiro-cli chat --v3
+
+(o tu alias: sudo kiro3)
+
+Luego pega el PROMPT de la seccion siguiente. Dale permiso de ejecutar comandos
+cuando lo pida: asi verifica el estado real del equipo y afina las
+recomendaciones (p. ej. si ya tienes arch-audit, como estan los permisos del
+home, etc.).
+
+--------------------------------------------------------------------------------
+ PROMPT (copiar desde aqui)
+--------------------------------------------------------------------------------
+
+Eres un asesor de hardening de Linux. Lee el informe de Lynis que esta en
+/var/log/lynis-report.dat (y si hace falta mas detalle, /var/log/lynis.log) y
+analizalo para este equipo:
+
+  - Escritorio Arch Linux, Hyprland/Wayland, uso personal (un solo usuario).
+  - NO expone servidor SSH (sshd deshabilitado); ssh se usa solo como cliente.
+  - Tiene docker instalado.
+  - Ya tiene configurados y con timers: rkhunter, chkrootkit, clamav (escaneo
+    diario de descargas/OneDrive/temporales) y el propio lynis (semanal).
+
+Antes de recomendar, verifica el estado real con comandos de solo lectura (que
+paquetes estan instalados, permisos de /home, sysctl actuales, contenido de
+/etc/login.defs, etc.) para no sugerir cosas ya hechas ni inventar nada.
+
+Entregame en espanol:
+
+  1. Los 5-7 puntos MAS importantes a corregir, ordenados por impacto REAL de
+     seguridad en un desktop. Ignora lo que solo aplica a servidores.
+  2. Para cada punto: que es, por que importa en ESTE equipo, y el comando o
+     archivo concreto para arreglarlo. Avisa si algun cambio tiene efectos
+     secundarios molestos (p. ej. ptrace_scope y los depuradores).
+  3. Una lista aparte de lo que se puede IGNORAR por no aplicar aqui, y por que.
+
+No inventes IDs de Lynis que no esten en el informe. Se conciso y accionable.
+
+--------------------------------------------------------------------------------
+ NOTA
+--------------------------------------------------------------------------------
+
+Si quieres forzar una auditoria fresca antes de analizar (en vez de usar la
+ultima semanal):
+
+    sudo lynis audit system
+
+================================================================================

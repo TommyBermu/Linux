@@ -1,0 +1,12 @@
+[Unit]
+Description=Auditoria semanal de Lynis
+
+[Timer]
+# Lynis audita configuracion/hardening, que cambia poco; semanal es suficiente
+# (diario seria ruido). El informe se lee a mano, no se notifica al escritorio.
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timers.target

@@ -517,41 +517,90 @@ enable_services() {
 }
 
 setup_security_baseline() {
-	log "Generando baselines de seguridad (rkhunter + clamav)"
+	log "Generando baselines de seguridad (rkhunter + chkrootkit + clamav + lynis)"
+
+	# Las units y scripts de escaneo asumen /usr/local/bin/security-notify y los
+	# *-run ya desplegados; eso lo hace apply_overlays (corre antes que esta
+	# funcion en main). Aqui solo instalamos config, units y arrancamos timers.
 
 	# --- rkhunter ---
 	if command -v rkhunter >/dev/null 2>&1; then
+		# Config propia (sobreescribe la del paquete y sobrevive a sus updates).
+		local rk_conf="${OVERLAYS_DIR}/etc/rkhunter.conf.local"
+		if [[ -f "$rk_conf" ]]; then
+			cp -f --no-preserve=ownership "$rk_conf" /etc/rkhunter.conf.local
+			# Valida la sintaxis antes de seguir; si falla, no generamos baseline
+			# con una config rota.
+			if rkhunter -C >/dev/null 2>&1; then
+				log "rkhunter: rkhunter.conf.local instalado y validado (-C ok)"
+			else
+				warn "rkhunter -C reporto problemas con rkhunter.conf.local; revisar"
+			fi
+		else
+			warn "No existe rkhunter.conf.local en overlays; se usa solo la config base"
+		fi
+
 		log "rkhunter: actualizando definiciones"
 		# --update puede devolver codigos no-cero informativos; no abortar.
 		rkhunter --update --nocolors >/dev/null 2>&1 || warn "rkhunter --update devolvio avisos"
 
-		log "rkhunter: generando baseline (--propupd)"
+		log "rkhunter: generando baseline inicial (--propupd)"
 		# Snapshot del estado bueno conocido de los binarios ya instalados.
 		rkhunter --propupd --nocolors >/dev/null 2>&1 || warn "rkhunter --propupd fallo"
 
-		# Instala el timer de escaneo diario (units versionados).
-		local rk_svc="${OVERLAYS_DIR}/etc/systemd/system/rkhunter-scan.service"
-		local rk_timer="${OVERLAYS_DIR}/etc/systemd/system/rkhunter-scan.timer"
-		if [[ -f "$rk_svc" && -f "$rk_timer" ]]; then
-			cp -f --no-preserve=ownership "$rk_svc" /etc/systemd/system/rkhunter-scan.service
-			cp -f --no-preserve=ownership "$rk_timer" /etc/systemd/system/rkhunter-scan.timer
+		# Instala units: escaneo diario (solo lectura) + chequeo cada 6h (que
+		# actualiza el baseline solo si el escaneo sale limpio). Esto reemplaza
+		# al viejo hook de pacman, que corria --propupd a ciegas.
+		# Instala el unit de chequeo cada 6h: escanea y, solo si sale limpio,
+		# actualiza el baseline (--propupd). Esto reemplaza al viejo hook de
+		# pacman, que corria --propupd a ciegas sin escanear antes.
+		local rk_csvc="${OVERLAYS_DIR}/etc/systemd/system/rkhunter-check.service"
+		local rk_ctimer="${OVERLAYS_DIR}/etc/systemd/system/rkhunter-check.timer"
+		if [[ -f "$rk_csvc" && -f "$rk_ctimer" ]]; then
+			cp -f --no-preserve=ownership "$rk_csvc" /etc/systemd/system/rkhunter-check.service
+			cp -f --no-preserve=ownership "$rk_ctimer" /etc/systemd/system/rkhunter-check.timer
 			systemctl daemon-reload
-			systemctl enable --now rkhunter-scan.timer >/dev/null 2>&1 || warn "No se pudo habilitar rkhunter-scan.timer"
+			systemctl enable --now rkhunter-check.timer >/dev/null 2>&1 || warn "No se pudo habilitar rkhunter-check.timer"
 		else
-			warn "No existen los units de rkhunter-scan en overlays; se omite el timer"
+			warn "Faltan units de rkhunter-check en overlays; se omite el timer"
 		fi
 
-		# Instala el hook de pacman para escanear tras cada instalacion/upgrade/remove.
-		local rk_hook="${OVERLAYS_DIR}/etc/pacman.d/hooks/rkhunter.hook"
-		if [[ -f "$rk_hook" ]]; then
-			mkdir -p /etc/pacman.d/hooks
-			cp -f --no-preserve=ownership "$rk_hook" /etc/pacman.d/hooks/rkhunter.hook
-			log "Hook de pacman para rkhunter instalado en /etc/pacman.d/hooks/rkhunter.hook"
-		else
-			warn "No existe el hook de rkhunter en overlays; se omite"
+		# Si quedaron units o hook de una instalacion previa, los retiramos.
+		# rkhunter-scan.* era un segundo escaneo redundante (misma profundidad
+		# que el check); se colapso todo en rkhunter-check.
+		if [[ -f /etc/systemd/system/rkhunter-scan.timer ]]; then
+			systemctl disable --now rkhunter-scan.timer >/dev/null 2>&1 || true
+			rm -f /etc/systemd/system/rkhunter-scan.service /etc/systemd/system/rkhunter-scan.timer
+			rm -f /usr/local/bin/rkhunter-scan-run
+			systemctl daemon-reload
+			log "rkhunter-scan.* retirado (redundante; se usa solo rkhunter-check)"
+		fi
+		# El viejo hook de pacman corria --propupd sin escanear, aceptando
+		# cualquier cambio como legitimo.
+		if [[ -f /etc/pacman.d/hooks/rkhunter.hook ]]; then
+			rm -f /etc/pacman.d/hooks/rkhunter.hook
+			log "Hook de pacman de rkhunter retirado (reemplazado por rkhunter-check.timer)"
 		fi
 	else
 		warn "rkhunter no instalado; se omite baseline"
+	fi
+
+	# --- chkrootkit ---
+	# No tiene baseline propio (compara contra firmas de rootkits), por eso solo
+	# un escaneo diario, sin hook de pacman.
+	if command -v chkrootkit >/dev/null 2>&1; then
+		local ck_svc="${OVERLAYS_DIR}/etc/systemd/system/chkrootkit-scan.service"
+		local ck_timer="${OVERLAYS_DIR}/etc/systemd/system/chkrootkit-scan.timer"
+		if [[ -f "$ck_svc" && -f "$ck_timer" ]]; then
+			cp -f --no-preserve=ownership "$ck_svc" /etc/systemd/system/chkrootkit-scan.service
+			cp -f --no-preserve=ownership "$ck_timer" /etc/systemd/system/chkrootkit-scan.timer
+			systemctl daemon-reload
+			systemctl enable --now chkrootkit-scan.timer >/dev/null 2>&1 || warn "No se pudo habilitar chkrootkit-scan.timer"
+		else
+			warn "Faltan units de chkrootkit en overlays; se omite el timer"
+		fi
+	else
+		warn "chkrootkit no instalado; se omite"
 	fi
 
 	# --- clamav ---
@@ -562,8 +611,38 @@ setup_security_baseline() {
 		freshclam >/dev/null 2>&1 || warn "freshclam fallo descargando firmas"
 		# Habilita la actualizacion automatica de firmas.
 		systemctl enable --now clamav-freshclam.service >/dev/null 2>&1 || warn "No se pudo habilitar clamav-freshclam"
+
+		# Escaneo diario de zonas de riesgo (clamscan puntual, sin daemon).
+		local cv_svc="${OVERLAYS_DIR}/etc/systemd/system/clamav-scan.service"
+		local cv_timer="${OVERLAYS_DIR}/etc/systemd/system/clamav-scan.timer"
+		if [[ -f "$cv_svc" && -f "$cv_timer" ]]; then
+			cp -f --no-preserve=ownership "$cv_svc" /etc/systemd/system/clamav-scan.service
+			cp -f --no-preserve=ownership "$cv_timer" /etc/systemd/system/clamav-scan.timer
+			systemctl daemon-reload
+			systemctl enable --now clamav-scan.timer >/dev/null 2>&1 || warn "No se pudo habilitar clamav-scan.timer"
+		else
+			warn "Faltan units de clamav-scan en overlays; se omite el timer"
+		fi
 	else
 		warn "clamav/freshclam no instalado; se omite"
+	fi
+
+	# --- lynis ---
+	# Auditoria de hardening (no detecta malware; recomienda endurecer config).
+	# Semanal, sin notificacion: el informe se lee en /var/log/lynis-report.dat.
+	if command -v lynis >/dev/null 2>&1; then
+		local ly_svc="${OVERLAYS_DIR}/etc/systemd/system/lynis-audit.service"
+		local ly_timer="${OVERLAYS_DIR}/etc/systemd/system/lynis-audit.timer"
+		if [[ -f "$ly_svc" && -f "$ly_timer" ]]; then
+			cp -f --no-preserve=ownership "$ly_svc" /etc/systemd/system/lynis-audit.service
+			cp -f --no-preserve=ownership "$ly_timer" /etc/systemd/system/lynis-audit.timer
+			systemctl daemon-reload
+			systemctl enable --now lynis-audit.timer >/dev/null 2>&1 || warn "No se pudo habilitar lynis-audit.timer"
+		else
+			warn "Faltan units de lynis-audit en overlays; se omite el timer"
+		fi
+	else
+		warn "lynis no instalado; se omite"
 	fi
 }
 

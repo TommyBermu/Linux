@@ -1,9 +1,10 @@
 [Unit]
-Description=Escaneo diario de rkhunter
+Description=rkhunter: chequeo diario
 
 [Timer]
 OnCalendar=daily
 Persistent=true
+RandomizedDelaySec=15min
 
 [Install]
 WantedBy=timers.target
