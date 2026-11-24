@@ -1,0 +1,18 @@
+[Desktop Entry]
+Name=Master PDF Editor 5
+Comment=Edit PDF files
+# Envuelto en firejail: masterpdfeditor es software propietario de parseo de PDF
+# (formato con historial de vulnerabilidades) y no trae sandbox propio, asi que
+# lo confinamos con el perfil /etc/firejail/masterpdfeditor5.profile. Este
+# .desktop vive en ~/.local/share/applications (prioridad sobre el de
+# /usr/share/applications) para interceptar tambien la apertura desde el menu y
+# al abrir un PDF, no solo cuando se teclea el binario en una terminal. Al estar
+# en el home, no lo pisa una actualizacion del paquete.
+Exec=firejail /opt/master-pdf-editor-5/masterpdfeditor5 %f
+Path=/opt/master-pdf-editor-5
+Terminal=false
+Icon=/opt/master-pdf-editor-5/masterpdfeditor5.png
+Type=Application
+Categories=Office;Graphics;
+MimeType=application/pdf;application/x-bzpdf;application/x-gzpdf;
+StartupWMClass=masterpdfeditor5

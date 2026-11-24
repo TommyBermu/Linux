@@ -14,6 +14,10 @@ dist-ssr
 # Excepcion: la config de rkhunter SI debe versionarse (no es un archivo
 # local de editor, es parte del overlay del sistema).
 !overlays/etc/rkhunter.conf.local
+# Excepcion: el overlay de ~/.local/ (p. ej. el .desktop de firejail para
+# masterpdfeditor) es parte del sistema, no un archivo local de editor.
+!overlays/home/.local/
+!overlays/home/.local/**
 
 # Environment files (keep the example committed)
 .env

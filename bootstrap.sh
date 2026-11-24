@@ -57,6 +57,10 @@ setup_ssh_key() {
 		local host
 		host="$(cat /etc/hostname 2>/dev/null)"
 		[[ -z "$host" ]] && host="$(hostname 2>/dev/null || uname -n)"
+		# Se crea SIN passphrase (-N "") a proposito: el bootstrap es desatendido
+		# y pedir passphrase aqui lo bloquearia (ademas ssh-keygen no siempre
+		# hereda stdin a traves de 'sudo -u'). La passphrase se añade despues a
+		# mano con 'ssh-keygen -p' (ver ACCIONES MANUALES PENDIENTES al final).
 		sudo -u "${TARGET_USER}" ssh-keygen -t ed25519 -C "${TARGET_USER}@${host}" -f "${key_file}" -N ""
 	else
 		log "Ya existe ${key_file}; se reutiliza"
@@ -109,9 +113,10 @@ setup_nvim_tmux() {
 	else
 		sudo -u "${TARGET_USER}" git -C "${nvim_dir}" pull --ff-only || true
 	fi
-	# Repo propio: se clona por HTTPS (no requiere que la clave SSH ya este
-	# autorizada en GitHub) pero el remote queda en SSH para poder hacer push.
-	sudo -u "${TARGET_USER}" git -C "${nvim_dir}" remote set-url origin git@github.com:TommyBermu/nvim.git
+	# Se clona por HTTPS (no requiere la clave SSH autorizada en GitHub). El
+	# remote se pasa a SSH (git@) en post-bootstrap.sh, una vez la clave ya
+	# esta subida a GitHub, junto con los demas repos propios.
+	sudo -u "${TARGET_USER}" git -C "${nvim_dir}" pull --ff-only || true
 
 	log "Configurando tmux desde GitHub"
 	if [[ ! -d "${tmux_dir}/.git" ]]; then
@@ -120,7 +125,6 @@ setup_nvim_tmux() {
 	else
 		sudo -u "${TARGET_USER}" git -C "${tmux_dir}" pull --ff-only || true
 	fi
-	sudo -u "${TARGET_USER}" git -C "${tmux_dir}" remote set-url origin git@github.com:TommyBermu/tmux.git
 
 	log "Instalando TPM"
 	sudo -u "${TARGET_USER}" mkdir -p "${tmux_dir}/plugins"
@@ -143,6 +147,9 @@ setup_nvim_tmux() {
 
 setup_cachyos_repo() {
 	log "Configurando repos de CachyOS con cachyos-repo.sh oficial"
+	# Nota de seguridad: CachyOS no publica un checksum estable del tarball, asi
+	# que esto se ejecuta sin verificar (su metodo oficial es curl|bash). Confia
+	# en HTTPS + el origen; es nuestra mayor superficie de confianza en terceros.
 	command -v curl >/dev/null 2>&1 || die "Falta curl; instala curl y vuelve a ejecutar"
 	pacman -S --noconfirm --needed gawk || true
 
@@ -200,6 +207,16 @@ setup_blackarch_repo() {
 	if ! curl -fsSL https://blackarch.org/strap.sh -o "$tmp_strap"; then
 		rm -f "$tmp_strap"
 		die "No se pudo descargar strap.sh de BlackArch"
+	fi
+
+	# Verifica el SHA1 oficial publicado en https://www.blackarch.org/downloads.html
+	# ANTES de ejecutar como root. Protege contra un mirror/descarga alterados.
+	# Nota: si BlackArch actualiza strap.sh este hash cambiara y la verificacion
+	# fallara a proposito; actualiza el valor tras revisar el nuevo script.
+	local strap_sha1="d338a4bb95d9e09f97508da68ac9e17d963b85f6"
+	if ! printf '%s  %s\n' "$strap_sha1" "$tmp_strap" | sha1sum -c --status; then
+		rm -f "$tmp_strap"
+		die "strap.sh de BlackArch no coincide con el SHA1 esperado (${strap_sha1}); se aborta por seguridad"
 	fi
 
 	chmod +x "$tmp_strap"
@@ -368,13 +385,26 @@ apply_overlays() {
 		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst"
 	fi
 
-	log "Aplicando overlays de share"
-	if [[ -d "${OVERLAYS_DIR}/share" ]]; then
-		ln -s "${OVERLAYS_DIR}/share/Documents" "$home_dst/Documents"
-		ln -s "${OVERLAYS_DIR}/share/Pictures" "$home_dst/Pictures"
-		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst/Documents"
-		chown -R "${TARGET_USER}:${TARGET_USER}" "$home_dst/Pictures"
-	fi
+	log "Enlazando Documents y Pictures a OneDrive"
+	# Documents y Pictures son symlinks a las carpetas sincronizadas por OneDrive
+	# (mismo layout que ya se usa a mano). OJO: OneDrive se autentica y sincroniza
+	# aparte (post-bootstrap), asi que ~/OneDrive puede no existir todavia en un
+	# sistema recien instalado; el symlink se crea igual y quedara valido cuando
+	# OneDrive baje las carpetas. Se usan rutas relativas (OneDrive/...) para que
+	# el enlace no dependa de la ruta absoluta del home.
+	local link
+	for link in Documents Pictures; do
+		# Si ya existe algo en esa ruta (carpeta real o symlink viejo), lo
+		# reemplazamos solo si es un symlink; una carpeta real con datos NO se
+		# toca para no borrar archivos del usuario.
+		if [[ -L "${home_dst}/${link}" ]]; then
+			rm -f "${home_dst}/${link}"
+		elif [[ -e "${home_dst}/${link}" ]]; then
+			warn "${home_dst}/${link} existe y no es symlink; se deja intacto (revisar a mano)"
+			continue
+		fi
+		sudo -u "${TARGET_USER}" ln -s "OneDrive/${link}" "${home_dst}/${link}"
+	done
 
 	log "Aplicando overlays de SDDM"
 	if [[ -f "${OVERLAYS_DIR}/etc/sddm/sddm.conf" ]]; then
@@ -507,8 +537,37 @@ enable_services() {
 	log "Habilitando servicios base"
 	systemctl enable sddm >/dev/null 2>&1 || warn "No se pudo habilitar sddm"
 	systemctl enable --now docker >/dev/null 2>&1 || warn "No se pudo habilitar/iniciar docker"
+
+	# Añade al usuario al grupo docker para usar docker sin sudo. Requiere
+	# cerrar sesion y volver a entrar (o 'newgrp docker') para que tome efecto.
+	if getent group docker >/dev/null 2>&1; then
+		if ! id -nG "${TARGET_USER}" | tr ' ' '\n' | grep -qx docker; then
+			gpasswd -a "${TARGET_USER}" docker >/dev/null 2>&1 \
+				&& log "Usuario ${TARGET_USER} añadido al grupo docker (re-login para aplicar)" \
+				|| warn "No se pudo añadir ${TARGET_USER} al grupo docker"
+		else
+			log "Usuario ${TARGET_USER} ya esta en el grupo docker"
+		fi
+	else
+		warn "No existe el grupo docker; se omite (¿docker instalado?)"
+	fi
 	systemctl enable bluetooth >/dev/null 2>&1 || true
-	systemctl enable ufw >/dev/null 2>&1 || true
+
+	# UFW: 'systemctl enable ufw' NO aplica reglas por si solo; UFW guarda su
+	# estado (ENABLED=yes + politicas) via su propio comando. Por eso fijamos
+	# aqui la politica por defecto y lo activamos explicitamente, para que un
+	# sistema recien instalado quede con firewall real y no con los defaults.
+	if command -v ufw >/dev/null 2>&1; then
+		# Deny entrante, permite saliente: postura estandar de escritorio sin
+		# servicios expuestos (este equipo no corre sshd ni servidores).
+		ufw --force reset >/dev/null 2>&1 || true
+		ufw default deny incoming >/dev/null 2>&1 || warn "ufw: no se pudo fijar deny incoming"
+		ufw default allow outgoing >/dev/null 2>&1 || warn "ufw: no se pudo fijar allow outgoing"
+		ufw --force enable >/dev/null 2>&1 || warn "ufw: no se pudo activar"
+		systemctl enable ufw >/dev/null 2>&1 || true
+	else
+		warn "ufw no instalado; se omite configuracion de firewall"
+	fi
 
 	# NetworkManager-wait-online queda enabled por preset al instalar networkmanager
 	# y bloquea la critical-chain del arranque grafico: tras poner la contrasena en
@@ -643,8 +702,100 @@ setup_security_baseline() {
 	fi
 }
 
+setup_sddm_sync() {
+	# El template de SDDM (~/.config/caelestia/templates/sddm-theme.conf) ya se
+	# copia como overlay de HOME en apply_overlays. Aqui aplicamos ese config al
+	# tema de login ejecutando el sync.sh que instala caelestia-sddm, igual que
+	# documenta el proyecto (ItsABigIgloo/caelestia-sddm). sync.sh usa SUDO_USER
+	# para resolver el usuario real, por eso se corre tal cual (root con SUDO_USER
+	# ya presente en el entorno del bootstrap).
+	local sync="/usr/share/sddm/themes/caelestia/scripts/sync.sh"
+	if [[ ! -x "$sync" ]]; then
+		warn "No existe ${sync}; se omite sync de SDDM (¿caelestia-sddm instalado?)"
+		return 0
+	fi
+
+	# --- Posthook: sync automatico en cada cambio de wallpaper/esquema --------
+	# El cli.json (overlay de HOME) ya define el postHook que corre
+	# 'sudo sync.sh --posthook'. Para que no se cuelgue pidiendo contrasena,
+	# instalamos un sudoers drop-in acotado SOLO a ese binario. El archivo del
+	# overlay trae __TARGET_USER__ como placeholder; aqui lo sustituimos por el
+	# usuario real y validamos con 'visudo -c' ANTES de colocarlo (un sudoers
+	# roto puede inutilizar sudo en todo el sistema).
+	local sudoers_src="${OVERLAYS_DIR}/etc/sudoers.d/caelestia-sddm-sync"
+	local sudoers_dst="/etc/sudoers.d/caelestia-sddm-sync"
+	if [[ -f "$sudoers_src" ]]; then
+		local tmp_sudoers
+		tmp_sudoers="$(mktemp)"
+		sed "s/__TARGET_USER__/${TARGET_USER}/g" "$sudoers_src" > "$tmp_sudoers"
+		if visudo -cf "$tmp_sudoers" >/dev/null 2>&1; then
+			install -o root -g root -m 0440 "$tmp_sudoers" "$sudoers_dst"
+			log "sudoers de posthook SDDM instalado (NOPASSWD solo para sync.sh)"
+		else
+			warn "El sudoers de caelestia-sddm no valido (visudo -c); NO se instala"
+		fi
+		rm -f "$tmp_sudoers"
+	else
+		warn "No existe el sudoers de caelestia-sddm en overlays; posthook pedira contrasena"
+	fi
+
+	# Sync inmediato una vez (deja el login al dia ya, sin esperar un cambio de
+	# wallpaper). De aqui en adelante el posthook lo mantiene automatico.
+	log "Sincronizando tema de SDDM (caelestia sync.sh)"
+	SUDO_USER="${TARGET_USER}" bash "$sync" >/dev/null 2>&1 \
+		|| warn "sync.sh de SDDM devolvio avisos (revisar login tras reiniciar)"
+}
+
+setup_sysctl_hardening() {
+	log "Aplicando hardening de kernel via sysctl"
+
+	local src="${OVERLAYS_DIR}/etc/sysctl.d/99-hardening.conf"
+	if [[ ! -f "$src" ]]; then
+		warn "No existe 99-hardening.conf en overlays; se omite"
+		return 0
+	fi
+
+	cp -f --no-preserve=ownership "$src" /etc/sysctl.d/99-hardening.conf
+	chmod 644 /etc/sysctl.d/99-hardening.conf
+
+	# Aplica ya, sin esperar al reinicio. --system relee todos los sysctl.d.
+	# No abortamos si una clave no existe en este kernel (p. ej. modulos no
+	# compilados): sysctl avisa pero seguimos.
+	sysctl --system >/dev/null 2>&1 || warn "sysctl --system reporto avisos (revisa claves no soportadas)"
+	log "sysctl: hardening aplicado (se mantiene en cada arranque)"
+}
+
+setup_firejail() {
+	log "Configurando firejail para masterpdfeditor"
+
+	if ! command -v firejail >/dev/null 2>&1; then
+		warn "firejail no instalado; se omite sandboxing"
+		return 0
+	fi
+
+	# Solo sandboxeamos masterpdfeditor: es la unica app de riesgo que abre
+	# archivos externos (PDFs) y NO trae sandbox propio. Navegadores (Brave,
+	# Tor) y apps Electron (zapzap) ya traen su propio sandbox de Chromium y
+	# meterlos en firejail estorba mas que ayuda (choque de zygote en Wayland).
+	if [[ ! -f /etc/firejail/masterpdfeditor5.profile ]]; then
+		warn "No existe perfil firejail masterpdfeditor5; se omite"
+		return 0
+	fi
+
+	# El .desktop con el Exec envuelto en firejail se despliega como overlay de
+	# HOME (en apply_overlays). Aqui solo refrescamos la base de datos de
+	# aplicaciones para que el cambio tome efecto sin reiniciar la sesion.
+	local apps_dir="${TARGET_HOME}/.local/share/applications"
+	if [[ -f "${apps_dir}/net.code-industry.masterpdfeditor5.desktop" ]]; then
+		sudo -u "${TARGET_USER}" update-desktop-database "${apps_dir}" >/dev/null 2>&1 || true
+		log "firejail: masterpdfeditor queda confinado al abrirse (menu y PDFs)"
+	else
+		warn "No se encontro el .desktop de masterpdfeditor en overlays de HOME"
+	fi
+}
+
 setup_portainer() {
-	log "Desplegando Portainer como servicio systemd (solo HTTP 9000)"
+	log "Desplegando Portainer como servicio systemd (HTTP 9000, solo loopback)"
 	command -v docker >/dev/null 2>&1 || die "Falta docker; agrega docker a paquetes oficiales"
 	systemctl is-active --quiet docker || systemctl start docker || die "No se pudo iniciar docker para desplegar Portainer"
 
@@ -681,12 +832,15 @@ main() {
 	install_aur_packages
 	apply_overlays
 	setup_quickshell
+	setup_sddm_sync
 	setup_nvim_tmux
 	setup_security_baseline
 	setup_dns
 	setup_grub
 	configure_swap_hibernate
 	enable_services
+	setup_sysctl_hardening
+	setup_firejail
 	setup_portainer
 
 	setup_ssh_key
@@ -705,7 +859,14 @@ main() {
 	printf '\n'
 	cat "${TARGET_HOME}/.ssh/id_ed25519.pub"
 	printf '\n'
-	printf '  [2] Instala el driver de huella manualmente (colisiona con libfprint\n'
+	printf '  [2] Pon una passphrase a tu clave SSH (se creo sin ella para no\n'
+	printf '      bloquear el bootstrap). Te pedira la actual (vacia: pulsa Enter)\n'
+	printf '      y luego la nueva. El keyring (gnome-keyring) la recordara tras\n'
+	printf '      el primer uso:\n'
+	printf '\n'
+	printf '          ssh-keygen -p -f ~/.ssh/id_ed25519\n'
+	printf '\n'
+	printf '  [3] Instala el driver de huella manualmente (colisiona con libfprint\n'
 	printf '      y hay que confirmar el reemplazo a mano):\n'
 	printf '\n'
 	printf '          paru -S libfprint-2-tod1-elan\n'

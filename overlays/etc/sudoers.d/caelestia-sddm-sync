@@ -1,0 +1,10 @@
+# Permite al usuario ejecutar SOLO el sync.sh del tema de SDDM de caelestia con
+# sudo sin contrasena. Lo necesita el posthook de caelestia (cli.json): cuando
+# cambias wallpaper o esquema de color, la CLI corre 'sudo sync.sh --posthook'
+# para reflejarlo en la pantalla de login; sin esto el posthook se colgaria
+# esperando la contrasena.
+#
+# Alcance minimo a proposito (solo este binario, propiedad de root). NO ampliar
+# a sudo mas abierto. El usuario (__TARGET_USER__) lo sustituye bootstrap.sh al
+# desplegar este archivo, porque el nombre de usuario no se hardcodea.
+__TARGET_USER__ ALL=(root) NOPASSWD: /usr/share/sddm/themes/caelestia/scripts/sync.sh
