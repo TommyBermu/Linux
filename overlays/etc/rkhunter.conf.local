@@ -58,5 +58,7 @@ ALLOWHIDDENFILE=/usr/share/man/man5/.k5identity.5.gz
 ALLOWHIDDENFILE=/usr/share/man/man5/.k5login.5.gz
 
 # Archivos "sospechosos" en /dev que en realidad son legitimos:
-#   rocm_smi_*  -> memoria compartida de la GPU AMD (ROCm) en /dev/shm
+#   rocm_smi_*      -> memoria compartida de la GPU AMD (ROCm) en /dev/shm
+#   sem.haveged_*   -> semaforo POSIX del demonio haveged (entropia del kernel)
 ALLOWDEVFILE=/dev/shm/rocm_smi_*
+ALLOWDEVFILE=/dev/shm/sem.haveged_*

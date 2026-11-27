@@ -53,3 +53,11 @@ Para evitarlo de raíz en los updates se podría añadir `noctalia-qs` a
 `IgnorePkg` en `pacman.conf`, o usar pinning/assume-installed para que paru
 nunca lo considere como proveedor. Decidido dejarlo fuera por ahora; esta nota
 queda como recordatorio.
+
+
+## problemas de red
+
+cuando kiro-cli o kiro ide no se conectan a los modelos o tarda mucho tiempo en 
+hacer ciertas transacciones, se debe al servidor DNS, toca cambiarlo a 1.1.1.1
+o 8.8.8.8 o cualquier servidor DNS menos el local, también se debe desactivar
+la opción de NetworkManager para que no cambie automáticamente el DNS
